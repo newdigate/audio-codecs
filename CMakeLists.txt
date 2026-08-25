@@ -85,6 +85,10 @@ add_library(audio_codecs_aac STATIC
     src/aac/decoder/stereo_processor.cpp
     src/aac/decoder/tns_decoder.cpp
     src/aac/decoder/aac_decoder.cpp
+    src/aac/encoder/transient_detector.cpp
+    src/aac/encoder/psychoacoustic.cpp
+    src/aac/encoder/quantizer.cpp
+    src/aac/encoder/huffman_encoder.cpp
 )
 target_link_libraries(audio_codecs_aac PUBLIC audio_codecs_core)
 
@@ -256,6 +260,10 @@ add_test(NAME AacStereoTnsTest COMMAND test_aac_stereo_tns)
 add_executable(test_aac_decoder tests/test_aac_decoder.cpp)
 target_link_libraries(test_aac_decoder PRIVATE audio_codecs_aac)
 add_test(NAME AacDecoderTest COMMAND test_aac_decoder)
+
+add_executable(test_aac_encoder_components tests/test_aac_encoder_components.cpp)
+target_link_libraries(test_aac_encoder_components PRIVATE audio_codecs_aac)
+add_test(NAME AacEncoderComponentsTest COMMAND test_aac_encoder_components)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
