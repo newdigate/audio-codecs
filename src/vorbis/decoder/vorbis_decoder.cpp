@@ -254,7 +254,7 @@ int VorbisDecoder::decode_ogg_page(const uint8_t* page_data, size_t page_len,
     }
 
     int total_pcm_out = 0;
-    while (impl_->demuxer.has_packet()) {
+    while (true) {
         int64_t granule_pos = 0;
         bool is_bos = false, is_eos = false;
         int pkt_len = impl_->demuxer.read_packet(impl_->packet_buffer, sizeof(impl_->packet_buffer), 

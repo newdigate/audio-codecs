@@ -280,7 +280,17 @@ int OggDemuxer::read_packet(uint8_t* out_packet, size_t max_out_bytes,
 }
 
 bool OggDemuxer::has_packet() const {
-    return packet_ready_;
+    if (packet_ready_) return true;
+    OggDemuxer* mut_this = const_cast<OggDemuxer*>(this);
+    while (!mut_this->packet_ready_) {
+        if (!mut_this->in_page_) {
+            if (!mut_this->parse_next_page()) break;
+        }
+        if (mut_this->in_page_) {
+            if (!mut_this->assemble_packet()) break;
+        }
+    }
+    return mut_this->packet_ready_;
 }
 
 } // namespace audio_codecs::ogg
