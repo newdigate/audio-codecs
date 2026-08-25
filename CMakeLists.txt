@@ -323,6 +323,11 @@ add_executable(test_wav_encoder tests/test_wav_encoder.cpp)
 target_link_libraries(test_wav_encoder PRIVATE audio_codecs_wav)
 add_test(NAME WavEncoderTest COMMAND test_wav_encoder)
 
+add_executable(test_wav_roundtrip tests/test_wav_roundtrip.cpp)
+target_link_libraries(test_wav_roundtrip PRIVATE audio_codecs_wav)
+add_test(NAME WavRoundtripTest COMMAND test_wav_roundtrip)
+
+
 
 
 

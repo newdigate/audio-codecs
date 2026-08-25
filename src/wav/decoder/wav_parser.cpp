@@ -105,6 +105,12 @@ bool WavParser::parse_chunk_stream(const uint8_t* in_data, size_t in_bytes, size
                 buffer_[buf_pos_++] = in_data[bytes_consumed++];
             }
             if (buf_pos_ == needed) {
+                if (!process_fmt_chunk()) {
+                    state_ = ParserState::Error;
+                    return false;
+                }
+                fmt_parsed_ = true;
+
                 // If there are extra bytes beyond 40, or pad byte
                 size_t total_to_consume = current_chunk_size_ + (current_chunk_size_ & 1);
                 if (total_to_consume > needed) {
@@ -114,11 +120,6 @@ bool WavParser::parse_chunk_stream(const uint8_t* in_data, size_t in_bytes, size
                     state_ = ParserState::ReadChunkHeader;
                     buf_pos_ = 0;
                 }
-                if (!process_fmt_chunk()) {
-                    state_ = ParserState::Error;
-                    return false;
-                }
-                fmt_parsed_ = true;
             }
         } else if (state_ == ParserState::ReadFactPayload) {
             while (bytes_consumed < in_bytes && buf_pos_ < 4) {
