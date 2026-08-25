@@ -333,6 +333,9 @@ add_test(NAME AiffTypesTest COMMAND test_aiff_types)
 add_executable(test_aiff_ieee80 tests/test_aiff_ieee80.cpp src/aiff/ieee80.cpp)
 add_test(NAME AiffIeee80Test COMMAND test_aiff_ieee80)
 
+add_executable(test_aiff_converters tests/test_aiff_converters.cpp src/aiff/sample_converter.cpp src/wav/g711.cpp)
+add_test(NAME AiffConvertersTest COMMAND test_aiff_converters)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
