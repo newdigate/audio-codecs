@@ -52,7 +52,23 @@ add_library(audio_codecs_flac STATIC
 )
 target_link_libraries(audio_codecs_flac PUBLIC audio_codecs_core)
 
+# Ogg library
+add_library(audio_codecs_ogg STATIC
+    src/ogg/ogg_crc.cpp
+    src/ogg/ogg_demuxer.cpp
+    src/ogg/ogg_muxer.cpp
+)
+target_link_libraries(audio_codecs_ogg PUBLIC audio_codecs_core)
+
 enable_testing()
+
+add_executable(test_ogg_crc tests/test_ogg_crc.cpp)
+target_link_libraries(test_ogg_crc PRIVATE audio_codecs_ogg)
+add_test(NAME OggCrcTest COMMAND test_ogg_crc)
+
+add_executable(test_ogg_framing tests/test_ogg_framing.cpp)
+target_link_libraries(test_ogg_framing PRIVATE audio_codecs_ogg)
+add_test(NAME OggFramingTest COMMAND test_ogg_framing)
 
 add_executable(test_flac_crc tests/test_flac_crc.cpp)
 target_link_libraries(test_flac_crc PRIVATE audio_codecs_flac)
