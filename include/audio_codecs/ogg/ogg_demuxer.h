@@ -21,7 +21,10 @@ public:
 
     bool has_packet() const;
     uint32_t get_serial_number() const { return current_header_.bitstream_serial_number; }
+    uint32_t get_sequence_number() const { return current_header_.page_sequence_number; }
     int64_t get_last_granule_pos() const { return current_header_.granule_position; }
+    bool is_bos() const { return (current_header_.header_type_flag & OGG_FLAG_BOS) != 0; }
+    bool is_eos() const { return (current_header_.header_type_flag & OGG_FLAG_EOS) != 0; }
 
 private:
     static constexpr size_t kBufferSize = 131072;

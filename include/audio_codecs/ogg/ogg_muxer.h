@@ -21,6 +21,9 @@ public:
 
     bool has_pending_page() const;
     uint32_t get_serial_number() const { return serial_number_; }
+    void set_serial_number(uint32_t serial_number) { serial_number_ = serial_number; }
+    uint32_t get_sequence_number() const { return sequence_number_; }
+    void set_sequence_number(uint32_t seq) { sequence_number_ = seq; }
 
 private:
     static constexpr size_t kMaxPagePayload = 65025; // 255 * 255
@@ -36,7 +39,6 @@ private:
 
     int64_t current_granule_pos_{0};
     uint8_t current_header_flags_{0};
-    bool continued_packet_{false};
 };
 
 } // namespace audio_codecs::ogg

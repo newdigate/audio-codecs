@@ -1,5 +1,6 @@
 #include "audio_codecs/ogg/ogg_muxer.h"
 #include "src/ogg/ogg_crc.h"
+#include <algorithm>
 #include <cstring>
 
 namespace audio_codecs::ogg {
@@ -15,12 +16,20 @@ void OggMuxer::reset() {
     segment_count_ = 0;
     current_granule_pos_ = 0;
     current_header_flags_ = 0;
-    continued_packet_ = false;
 }
 
 bool OggMuxer::write_packet(const uint8_t* packet_data, size_t packet_len, 
                             bool is_bos, bool is_eos, int64_t granule_pos) {
     if (!packet_data && packet_len > 0) return false;
+
+    // Calculate segments needed
+    size_t num_255 = packet_len / 255;
+    size_t needed_segs = num_255 + 1; // e.g. 0->1, 254->1, 255->2, 300->2
+
+    if (segment_count_ + needed_segs > OGG_MAX_PAGE_SEGMENTS || 
+        payload_len_ + packet_len > kMaxPagePayload) {
+        return false; // Caller must flush current page first
+    }
 
     if (is_bos) {
         current_header_flags_ |= OGG_FLAG_BOS;
@@ -31,24 +40,23 @@ bool OggMuxer::write_packet(const uint8_t* packet_data, size_t packet_len,
 
     current_granule_pos_ = granule_pos;
 
+    if (packet_len == 0) {
+        segment_table_[segment_count_++] = 0;
+        return true;
+    }
+
     size_t offset = 0;
-    while (offset < packet_len || (packet_len == 0 && offset == 0)) {
-        size_t seg_len = (packet_len - offset >= 255) ? 255 : (packet_len - offset);
-
-        if (segment_count_ >= OGG_MAX_PAGE_SEGMENTS || payload_len_ + seg_len > kMaxPagePayload) {
-            // Cannot fit in current page without flushing
-            return false;
-        }
-
-        if (seg_len > 0) {
-            std::memcpy(current_payload_ + payload_len_, packet_data + offset, seg_len);
-            payload_len_ += seg_len;
-        }
-
+    while (offset < packet_len) {
+        size_t seg_len = std::min(static_cast<size_t>(255), packet_len - offset);
+        std::memcpy(current_payload_ + payload_len_, packet_data + offset, seg_len);
+        payload_len_ += seg_len;
         segment_table_[segment_count_++] = static_cast<uint8_t>(seg_len);
         offset += seg_len;
+    }
 
-        if (packet_len == 0) break;
+    // If packet length is exact multiple of 255, append a terminating 0-length segment
+    if (packet_len % 255 == 0) {
+        segment_table_[segment_count_++] = 0;
     }
 
     return true;
@@ -59,6 +67,7 @@ bool OggMuxer::has_pending_page() const {
 }
 
 int OggMuxer::flush_page(uint8_t* out_page, size_t max_out_bytes, bool force) {
+    (void)force;
     if (segment_count_ == 0) {
         return 0;
     }
@@ -109,7 +118,9 @@ int OggMuxer::flush_page(uint8_t* out_page, size_t max_out_bytes, bool force) {
     std::memcpy(out_page + 27, segment_table_, segment_count_);
 
     // Payload body
-    std::memcpy(out_page + header_len, current_payload_, payload_len_);
+    if (payload_len_ > 0) {
+        std::memcpy(out_page + header_len, current_payload_, payload_len_);
+    }
 
     // Compute CRC-32
     uint32_t page_crc = ogg_crc32(0, out_page, total_page_len);
@@ -118,11 +129,19 @@ int OggMuxer::flush_page(uint8_t* out_page, size_t max_out_bytes, bool force) {
     out_page[24] = static_cast<uint8_t>((page_crc >> 16) & 0xFF);
     out_page[25] = static_cast<uint8_t>((page_crc >> 24) & 0xFF);
 
-    // Increment sequence number and clear state
+    // Increment sequence number and update state for next page
     sequence_number_++;
+
+    // If this page ended with a continued packet (lacing = 255), next page must have CONTINUED flag
+    if (segment_count_ > 0 && segment_table_[segment_count_ - 1] == 255) {
+        current_header_flags_ = OGG_FLAG_CONTINUED;
+    } else {
+        current_header_flags_ = 0;
+    }
+
     segment_count_ = 0;
     payload_len_ = 0;
-    current_header_flags_ = 0; // Clear BOS, etc.
+    current_granule_pos_ = -1;
 
     return static_cast<int>(total_page_len);
 }

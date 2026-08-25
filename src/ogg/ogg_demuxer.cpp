@@ -72,7 +72,7 @@ bool OggDemuxer::parse_next_page() {
     }
 
     if (!found_sync) {
-        // Discard buffer except last 3 bytes
+        // Discard buffer except last 3 bytes (in case partial "Ogg" is at end)
         if (buf_len_ > 3) {
             std::memmove(buffer_, buffer_ + (buf_len_ - 3), 3);
             buf_len_ = 3;
@@ -170,13 +170,43 @@ bool OggDemuxer::assemble_packet() {
         return false;
     }
 
+    // Handle continuation flag at start of new page
+    if (current_seg_index_ == 0) {
+        bool is_cont = (current_header_.header_type_flag & OGG_FLAG_CONTINUED) != 0;
+        if (!is_cont && packet_assembly_len_ > 0) {
+            // Discontinuity: missing continued page; discard abandoned partial packet
+            packet_assembly_len_ = 0;
+            packet_is_bos_ = false;
+        } else if (is_cont && packet_assembly_len_ == 0) {
+            // Orphan continuation: skip segments until packet boundary
+            while (current_seg_index_ < current_header_.page_segments) {
+                uint8_t seg_len = current_header_.segment_table[current_seg_index_];
+                page_body_offset_ += seg_len;
+                current_seg_index_++;
+                if (seg_len < 255) {
+                    break;
+                }
+            }
+        }
+    }
+
     while (current_seg_index_ < current_header_.page_segments) {
+        if (packet_assembly_len_ == 0) {
+            if (current_seg_index_ == 0) {
+                packet_is_bos_ = (current_header_.header_type_flag & OGG_FLAG_BOS) != 0;
+            } else {
+                packet_is_bos_ = false;
+            }
+        }
+
         uint8_t seg_len = current_header_.segment_table[current_seg_index_];
         
         if (packet_assembly_len_ + seg_len <= sizeof(packet_assembly_)) {
-            std::memcpy(packet_assembly_ + packet_assembly_len_, 
-                        buffer_ + page_body_offset_, seg_len);
-            packet_assembly_len_ += seg_len;
+            if (seg_len > 0) {
+                std::memcpy(packet_assembly_ + packet_assembly_len_, 
+                            buffer_ + page_body_offset_, seg_len);
+                packet_assembly_len_ += seg_len;
+            }
         }
 
         page_body_offset_ += seg_len;
@@ -185,9 +215,14 @@ bool OggDemuxer::assemble_packet() {
         if (seg_len < 255) {
             // Packet boundary reached!
             packet_ready_ = true;
-            packet_granule_pos_ = current_header_.granule_position;
-            packet_is_bos_ = (current_header_.header_type_flag & OGG_FLAG_BOS) != 0;
-            packet_is_eos_ = (current_header_.header_type_flag & OGG_FLAG_EOS) != 0;
+            bool is_last_seg = (current_seg_index_ >= current_header_.page_segments);
+            if (is_last_seg) {
+                packet_granule_pos_ = current_header_.granule_position;
+                packet_is_eos_ = (current_header_.header_type_flag & OGG_FLAG_EOS) != 0;
+            } else {
+                packet_granule_pos_ = -1;
+                packet_is_eos_ = false;
+            }
             break;
         }
     }
@@ -207,7 +242,7 @@ bool OggDemuxer::assemble_packet() {
 }
 
 int OggDemuxer::read_packet(uint8_t* out_packet, size_t max_out_bytes, 
-                           int64_t& out_granule_pos, bool& out_is_bos, bool& out_is_eos) {
+                            int64_t& out_granule_pos, bool& out_is_bos, bool& out_is_eos) {
     if (!packet_ready_) {
         // Try to assemble if possible
         while (!packet_ready_) {

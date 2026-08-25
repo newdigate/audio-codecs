@@ -63,6 +63,7 @@ target_link_libraries(audio_codecs_ogg PUBLIC audio_codecs_core)
 # Vorbis library
 add_library(audio_codecs_vorbis STATIC
     src/vorbis/vorbis_common.cpp
+    src/vorbis/vorbis_mdct.cpp
 )
 target_link_libraries(audio_codecs_vorbis PUBLIC audio_codecs_core audio_codecs_ogg)
 
@@ -71,6 +72,10 @@ enable_testing()
 add_executable(test_vorbis_float tests/test_vorbis_float.cpp)
 target_link_libraries(test_vorbis_float PRIVATE audio_codecs_vorbis)
 add_test(NAME VorbisFloatTest COMMAND test_vorbis_float)
+
+add_executable(test_vorbis_mdct tests/test_vorbis_mdct.cpp)
+target_link_libraries(test_vorbis_mdct PRIVATE audio_codecs_vorbis)
+add_test(NAME VorbisMdctTest COMMAND test_vorbis_mdct)
 
 add_executable(test_ogg_crc tests/test_ogg_crc.cpp)
 target_link_libraries(test_ogg_crc PRIVATE audio_codecs_ogg)
