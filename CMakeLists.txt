@@ -93,6 +93,13 @@ add_library(audio_codecs_aac STATIC
 )
 target_link_libraries(audio_codecs_aac PUBLIC audio_codecs_core)
 
+# MP4 library
+add_library(audio_codecs_mp4 STATIC
+    src/mp4/mp4_demuxer.cpp
+    src/mp4/mp4_muxer.cpp
+)
+target_link_libraries(audio_codecs_mp4 PUBLIC audio_codecs_core)
+
 enable_testing()
 
 add_executable(test_vorbis_float tests/test_vorbis_float.cpp)
@@ -273,6 +280,10 @@ add_test(NAME AacEncoderTest COMMAND test_aac_encoder)
 add_executable(test_aac_roundtrip tests/test_aac_roundtrip.cpp)
 target_link_libraries(test_aac_roundtrip PRIVATE audio_codecs_aac)
 add_test(NAME AacRoundtripTest COMMAND test_aac_roundtrip)
+
+add_executable(test_mp4_container tests/test_mp4_container.cpp)
+target_link_libraries(test_mp4_container PRIVATE audio_codecs_mp4 audio_codecs_aac audio_codecs_core)
+add_test(NAME Mp4ContainerTest COMMAND test_mp4_container)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
