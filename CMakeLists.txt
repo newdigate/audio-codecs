@@ -78,6 +78,7 @@ target_link_libraries(audio_codecs_vorbis PUBLIC audio_codecs_core audio_codecs_
 # AAC library
 add_library(audio_codecs_aac STATIC
     src/aac/aac_tables.cpp
+    src/aac/aac_mdct.cpp
 )
 target_link_libraries(audio_codecs_aac PUBLIC audio_codecs_core)
 
@@ -229,6 +230,10 @@ add_test(NAME FlacRoundtripTest COMMAND test_flac_roundtrip)
 add_executable(test_aac_tables tests/test_aac_tables.cpp)
 target_link_libraries(test_aac_tables PRIVATE audio_codecs_aac)
 add_test(NAME AacTablesTest COMMAND test_aac_tables)
+
+add_executable(test_aac_mdct tests/test_aac_mdct.cpp)
+target_link_libraries(test_aac_mdct PRIVATE audio_codecs_aac)
+add_test(NAME AacMdctTest COMMAND test_aac_mdct)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
