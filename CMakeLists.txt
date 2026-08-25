@@ -82,6 +82,8 @@ add_library(audio_codecs_aac STATIC
     src/aac/adts_parser.cpp
     src/aac/decoder/huffman_decoder.cpp
     src/aac/decoder/requantizer.cpp
+    src/aac/decoder/stereo_processor.cpp
+    src/aac/decoder/tns_decoder.cpp
 )
 target_link_libraries(audio_codecs_aac PUBLIC audio_codecs_core)
 
@@ -245,6 +247,10 @@ add_test(NAME AdtsFramingTest COMMAND test_adts_framing)
 add_executable(test_aac_huffman tests/test_aac_huffman.cpp)
 target_link_libraries(test_aac_huffman PRIVATE audio_codecs_aac)
 add_test(NAME AacHuffmanTest COMMAND test_aac_huffman)
+
+add_executable(test_aac_stereo_tns tests/test_aac_stereo_tns.cpp)
+target_link_libraries(test_aac_stereo_tns PRIVATE audio_codecs_aac)
+add_test(NAME AacStereoTnsTest COMMAND test_aac_stereo_tns)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
