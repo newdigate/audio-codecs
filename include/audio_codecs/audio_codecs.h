@@ -8,3 +8,4 @@
 #include "audio_codecs/flac/flac_encoder.h"
 #include "audio_codecs/ogg.h"
 #include "audio_codecs/vorbis.h"
+#include "audio_codecs/aac/aac_decoder.h"
