@@ -21,7 +21,8 @@ Zero-allocation, clean-room C++17 implementations of AIFF/AIFC, WAV (RIFF), MP3 
   - Residue types 0, 1, and 2 with polar channel coupling / stereo decoupling (Mapping 0).
   - Mode switching between short (512) and long (2048) block sizes.
   - Streaming `VorbisDecoder` and `VorbisEncoder` with Ogg page integration.
-- **MP3**: Full MPEG-1 Layer III encoder (MDCT, psychoacoustic model, Huffman) and decoder (Huffman, requantization, IMDCT, synthesis filter).
+- **AAC**: ISO/IEC 14496-3 Advanced Audio Coding (AAC-LC) encoder and decoder with ADTS framing, MDCT, psychoacoustic model, Temporal Noise Shaping (TNS), mid/side stereo, and canonical Huffman coding.
+- **MP4**: ISO Base Media File Format (ISOBMFF / MP4) demuxer and muxer for AAC audio tracks.
 - **FLAC**: Lossless encoder and decoder supporting Fixed/LPC prediction (Levinson-Durbin up to order 32), Rice coding, Mid/Side stereo decorrelation, CRC-8/CRC-16 validation, and MD5 streaming checksums. Bit-exact integer (`int16_t`, `int32_t`) and normalized float (`float`) I/O.
 
 ## Quick Start
@@ -171,6 +172,78 @@ int bytes = encoder.encode_frame_i16(pcm_16bit, num_samples, aiff_out, sizeof(ai
 
 // Finalize header in-place with total data byte count
 encoder.finalize_header(header, bytes);
+```
+
+---
+
+### WAV (RIFF)
+
+#### Decoding
+```cpp
+#include "audio_codecs/wav/wav_decoder.h"
+
+audio_codecs::wav::WavDecoder decoder;
+
+// Incrementally parse RIFF container & fmt chunk
+size_t bytes_consumed = 0;
+decoder.parse_stream_header(wav_data, wav_size, bytes_consumed);
+
+// Decode frame to 16-bit integer PCM or normalized float
+int16_t pcm_out[4096 * 2];
+int samples = decoder.decode_frame_i16(wav_data + bytes_consumed, wav_size - bytes_consumed, pcm_out, 4096 * 2);
+```
+
+#### Encoding
+```cpp
+#include "audio_codecs/wav/wav_encoder.h"
+
+audio_codecs::wav::WavEncoder encoder;
+audio_codecs::wav::WavEncoderConfig config;
+config.core_config.sample_rate = 44100;
+config.core_config.channels = 2;
+config.sample_format = audio_codecs::wav::WavSampleFormat::Int16LE;
+encoder.init_wav(config);
+
+// Write RIFF/WAVE header
+uint8_t header[128];
+int hdr_bytes = encoder.write_stream_header(header, sizeof(header));
+
+// Encode audio frames
+uint8_t wav_out[65536];
+int bytes = encoder.encode_frame_i16(pcm_16bit, num_samples, wav_out, sizeof(wav_out));
+
+// Finalize header in-place with total data byte count
+encoder.finalize_header(header, bytes);
+```
+
+---
+
+### AAC
+
+#### Decoding
+```cpp
+#include "audio_codecs/aac/aac_decoder.h"
+
+audio_codecs::aac::AacDecoder decoder;
+decoder.init({});
+
+float pcm_out[2048 * 2];
+int samples = decoder.decode_frame(adts_data, adts_size, pcm_out, 2048 * 2);
+```
+
+#### Encoding
+```cpp
+#include "audio_codecs/aac/aac_encoder.h"
+
+audio_codecs::aac::AacEncoder encoder;
+audio_codecs::AudioConfig config;
+config.sample_rate = 44100;
+config.channels = 2;
+config.bitrate_kbps = 128;
+encoder.init(config);
+
+uint8_t aac_out[4096];
+int bytes = encoder.encode_frame(pcm_float_data, 1024 * 2, aac_out, sizeof(aac_out));
 ```
 
 ## Building & Testing
