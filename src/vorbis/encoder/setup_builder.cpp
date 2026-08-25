@@ -136,11 +136,10 @@ size_t build_vorbis_setup_header(uint8_t* out_packet, size_t max_bytes,
     writer.write_bits(out_setup.floor_count - 1, 6);
 
     VorbisFloor1Config& floor0 = out_setup.floors[0];
-    floor0.partitions = 4;
+    floor0.partitions = 3;
     floor0.partition_class[0] = 0;
     floor0.partition_class[1] = 1;
     floor0.partition_class[2] = 1;
-    floor0.partition_class[3] = 1;
 
     floor0.class_dimensions[0] = 1;
     floor0.class_subclasses[0] = 0;
