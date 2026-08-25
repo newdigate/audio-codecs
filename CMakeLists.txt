@@ -100,6 +100,13 @@ add_library(audio_codecs_mp4 STATIC
 )
 target_link_libraries(audio_codecs_mp4 PUBLIC audio_codecs_core)
 
+# WAV library
+add_library(audio_codecs_wav STATIC
+    src/wav/g711.cpp
+)
+target_link_libraries(audio_codecs_wav PUBLIC audio_codecs_core)
+
+
 enable_testing()
 
 add_executable(test_vorbis_float tests/test_vorbis_float.cpp)
@@ -287,6 +294,11 @@ add_test(NAME Mp4ContainerTest COMMAND test_mp4_container)
 
 add_executable(test_wav_types tests/test_wav_types.cpp)
 add_test(NAME WavTypesTest COMMAND test_wav_types)
+
+add_executable(test_wav_g711 tests/test_wav_g711.cpp)
+target_link_libraries(test_wav_g711 PRIVATE audio_codecs_wav)
+add_test(NAME WavG711Test COMMAND test_wav_g711)
+
 
 
 # Fetch test-files repository for integration testing
