@@ -106,8 +106,10 @@ add_library(audio_codecs_wav STATIC
     src/wav/sample_converter.cpp
     src/wav/decoder/wav_parser.cpp
     src/wav/decoder/wav_decoder.cpp
+    src/wav/encoder/wav_encoder.cpp
 )
 target_link_libraries(audio_codecs_wav PUBLIC audio_codecs_core)
+
 
 
 
@@ -316,6 +318,11 @@ add_test(NAME WavParserTest COMMAND test_wav_parser)
 add_executable(test_wav_decoder tests/test_wav_decoder.cpp)
 target_link_libraries(test_wav_decoder PRIVATE audio_codecs_wav)
 add_test(NAME WavDecoderTest COMMAND test_wav_decoder)
+
+add_executable(test_wav_encoder tests/test_wav_encoder.cpp)
+target_link_libraries(test_wav_encoder PRIVATE audio_codecs_wav)
+add_test(NAME WavEncoderTest COMMAND test_wav_encoder)
+
 
 
 
