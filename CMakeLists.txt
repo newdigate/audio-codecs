@@ -70,6 +70,7 @@ add_library(audio_codecs_vorbis STATIC
     src/vorbis/vorbis_mapping.cpp
     src/vorbis/decoder/header_parser.cpp
     src/vorbis/encoder/setup_builder.cpp
+    src/vorbis/decoder/vorbis_decoder.cpp
 )
 target_link_libraries(audio_codecs_vorbis PUBLIC audio_codecs_core audio_codecs_ogg)
 
@@ -98,6 +99,10 @@ add_test(NAME VorbisResidueTest COMMAND test_vorbis_residue)
 add_executable(test_vorbis_headers tests/test_vorbis_headers.cpp)
 target_link_libraries(test_vorbis_headers PRIVATE audio_codecs_vorbis)
 add_test(NAME VorbisHeadersTest COMMAND test_vorbis_headers)
+
+add_executable(test_vorbis_decoder tests/test_vorbis_decoder.cpp)
+target_link_libraries(test_vorbis_decoder PRIVATE audio_codecs_vorbis)
+add_test(NAME VorbisDecoderTest COMMAND test_vorbis_decoder)
 
 add_executable(test_ogg_crc tests/test_ogg_crc.cpp)
 target_link_libraries(test_ogg_crc PRIVATE audio_codecs_ogg)
