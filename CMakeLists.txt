@@ -89,6 +89,7 @@ add_library(audio_codecs_aac STATIC
     src/aac/encoder/psychoacoustic.cpp
     src/aac/encoder/quantizer.cpp
     src/aac/encoder/huffman_encoder.cpp
+    src/aac/encoder/aac_encoder.cpp
 )
 target_link_libraries(audio_codecs_aac PUBLIC audio_codecs_core)
 
@@ -264,6 +265,14 @@ add_test(NAME AacDecoderTest COMMAND test_aac_decoder)
 add_executable(test_aac_encoder_components tests/test_aac_encoder_components.cpp)
 target_link_libraries(test_aac_encoder_components PRIVATE audio_codecs_aac)
 add_test(NAME AacEncoderComponentsTest COMMAND test_aac_encoder_components)
+
+add_executable(test_aac_encoder tests/test_aac_encoder.cpp)
+target_link_libraries(test_aac_encoder PRIVATE audio_codecs_aac)
+add_test(NAME AacEncoderTest COMMAND test_aac_encoder)
+
+add_executable(test_aac_roundtrip tests/test_aac_roundtrip.cpp)
+target_link_libraries(test_aac_roundtrip PRIVATE audio_codecs_aac)
+add_test(NAME AacRoundtripTest COMMAND test_aac_roundtrip)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)

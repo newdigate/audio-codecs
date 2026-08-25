@@ -40,13 +40,15 @@ void AacQuantizer::quantize_spectrum_fast(const float* in_spectral,
         int end = swb_offsets[s + 1];
         float width = static_cast<float>(end - start);
 
+        float band_energy = 0.0f;
         float max_val = 0.0f;
         for (int i = start; i < end; ++i) {
             float ax = std::fabs(in_spectral[i]);
             if (ax > max_val) max_val = ax;
+            band_energy += ax * ax;
         }
 
-        if (max_val < 1e-6f) {
+        if (max_val < 0.05f) {
             sf[s] = 0;
             active[s] = false;
             for (int i = start; i < end; ++i) {
@@ -56,17 +58,12 @@ void AacQuantizer::quantize_spectrum_fast(const float* in_spectral,
         }
 
         active[s] = true;
-        float thr = (masking_thresholds) ? std::max(masking_thresholds[s], 1e-9f) : 1.0f;
 
-        // Noise energy ~ (width / 12) * 2^(0.5 * (sf - 100)) <= thr
-        // sf = 100 + 2 * log2(12 * thr / width)
-        float est_sf = 100.0f + 2.0f * (std::log((12.0f * thr) / width) / std::log(2.0f));
-
-        // Ensure max value does not overflow 8191
-        // sf >= 100 + 4 * log2(max_val / 8191^(4/3))
-        // 8191^(4/3) ~ 166708
+        // Target peak quantization depth q_target ~ 300..500
+        // sf = 100 + 4 * log2(max_val / 3000)
+        float est_sf = 100.0f + 4.0f * (std::log(std::max(max_val / 3000.0f, 1e-12f)) / std::log(2.0f));
         float min_sf_for_max = 100.0f + 4.0f * (std::log(std::max(max_val / 160000.0f, 1e-12f)) / std::log(2.0f));
-        est_sf = std::max(est_sf, min_sf_for_max);
+        est_sf = std::max(min_sf_for_max, est_sf);
 
         int isf = static_cast<int>(std::round(est_sf));
         sf[s] = std::max(0, std::min(255, isf));
@@ -125,7 +122,7 @@ void AacQuantizer::quantize_spectrum_fast(const float* in_spectral,
 
     // 4. Rate control adjustment if target_bits is specified
     if (target_bits > 0) {
-        for (int iter = 0; iter < 4; ++iter) {
+        for (int iter = 0; iter < 16; ++iter) {
             size_t total_bits = 0;
             for (size_t s = 0; s < num_swb; ++s) {
                 if (!active[s]) continue;
@@ -137,11 +134,22 @@ void AacQuantizer::quantize_spectrum_fast(const float* in_spectral,
 
             if (total_bits > static_cast<size_t>(target_bits)) {
                 // Too many bits -> increase scalefactor to make quantization coarser
-                int step = (total_bits > static_cast<size_t>(target_bits * 1.5)) ? 2 : 1;
+                int diff = static_cast<int>(total_bits - target_bits);
+                int step = (diff > target_bits) ? 4 : (diff > target_bits / 2) ? 2 : 1;
                 out_global_gain = std::min(255, out_global_gain + step);
                 for (size_t s = 0; s < num_swb; ++s) {
                     if (active[s]) {
                         out_scalefactors[s] = std::min(255, out_scalefactors[s] + step);
+                    }
+                }
+                perform_quantization();
+            } else if (total_bits < static_cast<size_t>(target_bits * 0.75f) && out_global_gain > 50) {
+                // Too few bits -> decrease scalefactor for higher reconstruction quality
+                int step = (total_bits < static_cast<size_t>(target_bits * 0.3f)) ? 4 : 2;
+                out_global_gain = std::max(0, out_global_gain - step);
+                for (size_t s = 0; s < num_swb; ++s) {
+                    if (active[s]) {
+                        out_scalefactors[s] = std::max(0, out_scalefactors[s] - step);
                     }
                 }
                 perform_quantization();

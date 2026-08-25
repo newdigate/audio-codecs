@@ -323,7 +323,8 @@ void AacHuffmanEncoder::build_sections(const int* band_codebooks,
 size_t AacHuffmanEncoder::write_section_data(core::BitWriter& writer, 
                                              const int* section_codebooks, 
                                              const int* section_lengths, 
-                                             size_t num_sections) {
+                                             size_t num_sections,
+                                             bool is_short) {
     if (!section_codebooks || !section_lengths || num_sections == 0) return 0;
 
     size_t start_bits = writer.get_bit_count();
@@ -333,11 +334,19 @@ size_t AacHuffmanEncoder::write_section_data(core::BitWriter& writer,
         int len = section_lengths[s];
 
         writer.write_bits(static_cast<uint32_t>(cb), 4);
-        while (len >= 31) {
-            writer.write_bits(31, 5);
-            len -= 31;
+        if (is_short) {
+            while (len >= 7) {
+                writer.write_bits(7, 3);
+                len -= 7;
+            }
+            writer.write_bits(static_cast<uint32_t>(len), 3);
+        } else {
+            while (len >= 31) {
+                writer.write_bits(31, 5);
+                len -= 31;
+            }
+            writer.write_bits(static_cast<uint32_t>(len), 5);
         }
-        writer.write_bits(static_cast<uint32_t>(len), 5);
     }
 
     return writer.get_bit_count() - start_bits;
@@ -365,7 +374,7 @@ size_t AacHuffmanEncoder::write_scalefactor_data(core::BitWriter& writer,
         if (delta < -60) delta = -60;
 
         encode_scalefactor_delta(writer, delta);
-        last_sf = sf;
+        last_sf += delta;
     }
 
     return writer.get_bit_count() - start_bits;

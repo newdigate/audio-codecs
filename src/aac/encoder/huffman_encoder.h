@@ -37,7 +37,8 @@ public:
     static size_t write_section_data(core::BitWriter& writer, 
                                      const int* section_codebooks, 
                                      const int* section_lengths, 
-                                     size_t num_sections);
+                                     size_t num_sections,
+                                     bool is_short = false);
 
     // Writes DPCM scalefactor data to bitstream and returns total bits written
     static size_t write_scalefactor_data(core::BitWriter& writer, 

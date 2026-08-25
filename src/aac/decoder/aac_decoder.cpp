@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 #include <new>
 
 namespace audio_codecs::aac {
@@ -114,8 +115,10 @@ bool decode_ics(core::BitReader& reader,
                 bool common_window,
                 const IcsInfo& shared_ics,
                 ChannelStream& ch,
-                const int* swb_offsets,
-                size_t num_swb) {
+                const int* swb_offsets_long,
+                size_t num_swb_long,
+                const int* swb_offsets_short,
+                size_t num_swb_short) {
     std::memset(&ch, 0, sizeof(ChannelStream));
     if (reader.bits_remaining() < 8) return false;
     ch.global_gain = static_cast<uint8_t>(reader.read_bits(8));
@@ -129,6 +132,9 @@ bool decode_ics(core::BitReader& reader,
     }
 
     const IcsInfo& ics = ch.ics;
+    bool is_short = (ics.window_sequence == WindowSequence::EightShort);
+    const int* swb_offsets = is_short ? swb_offsets_short : swb_offsets_long;
+    size_t num_swb = is_short ? num_swb_short : num_swb_long;
 
     // 1. Section Data
     for (uint8_t g = 0; g < ics.num_window_groups; ++g) {
@@ -528,7 +534,8 @@ int AacDecoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
             // Peek at window sequence to select swb_offsets table
             // We can decode ICS directly
             if (!decode_ics(reader, false, dummy_shared, impl_->ch[ch_idx], 
-                            swb_offsets_long, num_swb_long)) {
+                            swb_offsets_long, num_swb_long,
+                            swb_offsets_short, num_swb_short)) {
                 return -4;
             }
 
@@ -601,14 +608,14 @@ int AacDecoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
                 }
             }
 
-            bool is_short_0 = (common_window && shared_ics.window_sequence == WindowSequence::EightShort);
-            const int* swb0 = is_short_0 ? swb_offsets_short : swb_offsets_long;
-            size_t num_swb0 = is_short_0 ? num_swb_short : num_swb_long;
-
-            if (!decode_ics(reader, common_window, shared_ics, impl_->ch[0], swb0, num_swb0)) {
+            if (!decode_ics(reader, common_window, shared_ics, impl_->ch[0], 
+                            swb_offsets_long, num_swb_long,
+                            swb_offsets_short, num_swb_short)) {
                 return -6;
             }
-            if (!decode_ics(reader, common_window, shared_ics, impl_->ch[1], swb0, num_swb0)) {
+            if (!decode_ics(reader, common_window, shared_ics, impl_->ch[1], 
+                            swb_offsets_long, num_swb_long,
+                            swb_offsets_short, num_swb_short)) {
                 return -6;
             }
 
