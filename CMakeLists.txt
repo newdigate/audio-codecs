@@ -110,6 +110,15 @@ add_library(audio_codecs_wav STATIC
 )
 target_link_libraries(audio_codecs_wav PUBLIC audio_codecs_core)
 
+# AIFF library
+add_library(audio_codecs_aiff STATIC
+    src/aiff/ieee80.cpp
+    src/aiff/sample_converter.cpp
+    src/aiff/decoder/aiff_parser.cpp
+    src/aiff/decoder/aiff_decoder.cpp
+)
+target_link_libraries(audio_codecs_aiff PUBLIC audio_codecs_core audio_codecs_wav)
+
 
 
 
@@ -338,6 +347,10 @@ add_test(NAME AiffConvertersTest COMMAND test_aiff_converters)
 
 add_executable(test_aiff_parser tests/test_aiff_parser.cpp src/aiff/decoder/aiff_parser.cpp src/aiff/ieee80.cpp)
 add_test(NAME AiffParserTest COMMAND test_aiff_parser)
+
+add_executable(test_aiff_decoder tests/test_aiff_decoder.cpp)
+target_link_libraries(test_aiff_decoder PRIVATE audio_codecs_aiff)
+add_test(NAME AiffDecoderTest COMMAND test_aiff_decoder)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
