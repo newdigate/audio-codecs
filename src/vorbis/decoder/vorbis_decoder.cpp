@@ -108,7 +108,11 @@ bool VorbisDecoder::parse_header_packet(const uint8_t* in_packet, size_t in_byte
     } else if (ptype == VORBIS_PACKET_SETUP) {
         if (impl_->id_parsed && parse_vorbis_setup_header(in_packet, in_bytes, impl_->info.channels, impl_->setup)) {
             impl_->setup_parsed = true;
-            impl_->reset();
+            impl_->mdct_short.init(impl_->setup.blocksize_0);
+            impl_->mdct_long.init(impl_->setup.blocksize_1);
+            impl_->prev_blocksize = 0;
+            impl_->overlap_len = 0;
+            std::memset(impl_->overlap_buffer, 0, sizeof(impl_->overlap_buffer));
             return true;
         }
     }
