@@ -104,8 +104,10 @@ target_link_libraries(audio_codecs_mp4 PUBLIC audio_codecs_core)
 add_library(audio_codecs_wav STATIC
     src/wav/g711.cpp
     src/wav/sample_converter.cpp
+    src/wav/decoder/wav_parser.cpp
 )
 target_link_libraries(audio_codecs_wav PUBLIC audio_codecs_core)
+
 
 
 
@@ -304,6 +306,11 @@ add_test(NAME WavG711Test COMMAND test_wav_g711)
 add_executable(test_wav_converters tests/test_wav_converters.cpp)
 target_link_libraries(test_wav_converters PRIVATE audio_codecs_wav)
 add_test(NAME WavConvertersTest COMMAND test_wav_converters)
+
+add_executable(test_wav_parser tests/test_wav_parser.cpp)
+target_link_libraries(test_wav_parser PRIVATE audio_codecs_wav)
+add_test(NAME WavParserTest COMMAND test_wav_parser)
+
 
 
 
