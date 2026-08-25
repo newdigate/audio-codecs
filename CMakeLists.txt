@@ -330,6 +330,9 @@ add_test(NAME WavRoundtripTest COMMAND test_wav_roundtrip)
 add_executable(test_aiff_types tests/test_aiff_types.cpp)
 add_test(NAME AiffTypesTest COMMAND test_aiff_types)
 
+add_executable(test_aiff_ieee80 tests/test_aiff_ieee80.cpp src/aiff/ieee80.cpp)
+add_test(NAME AiffIeee80Test COMMAND test_aiff_ieee80)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
