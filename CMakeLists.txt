@@ -285,6 +285,10 @@ add_executable(test_mp4_container tests/test_mp4_container.cpp)
 target_link_libraries(test_mp4_container PRIVATE audio_codecs_mp4 audio_codecs_aac audio_codecs_core)
 add_test(NAME Mp4ContainerTest COMMAND test_mp4_container)
 
+add_executable(test_wav_types tests/test_wav_types.cpp)
+add_test(NAME WavTypesTest COMMAND test_wav_types)
+
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)

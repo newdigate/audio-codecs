@@ -10,4 +10,5 @@
 #include "audio_codecs/vorbis.h"
 #include "audio_codecs/aac.h"
 #include "audio_codecs/mp4.h"
+#include "audio_codecs/wav.h"
 
