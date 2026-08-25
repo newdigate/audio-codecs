@@ -248,28 +248,45 @@ int VorbisDecoder::decode_ogg_page(const uint8_t* page_data, size_t page_len,
                                    float* out_pcm, size_t max_out_samples) {
     if (!impl_ || !page_data || page_len == 0 || !out_pcm) return -1;
 
-    size_t consumed = 0;
-    if (!impl_->demuxer.push_bytes(page_data, page_len, consumed)) {
-        return -1;
-    }
-
+    size_t offset = 0;
     int total_pcm_out = 0;
-    while (true) {
-        int64_t granule_pos = 0;
-        bool is_bos = false, is_eos = false;
-        int pkt_len = impl_->demuxer.read_packet(impl_->packet_buffer, sizeof(impl_->packet_buffer), 
-                                                 granule_pos, is_bos, is_eos);
-        if (pkt_len <= 0) break;
 
-        const uint8_t* pkt = impl_->packet_buffer;
-        if (is_vorbis_header(pkt, pkt_len, VORBIS_PACKET_ID) ||
-            is_vorbis_header(pkt, pkt_len, VORBIS_PACKET_COMMENT) ||
-            is_vorbis_header(pkt, pkt_len, VORBIS_PACKET_SETUP)) {
-            parse_header_packet(pkt, pkt_len);
-        } else if (has_headers()) {
-            int ret = decode_packet(pkt, pkt_len, out_pcm + total_pcm_out, max_out_samples - total_pcm_out);
-            if (ret > 0) {
-                total_pcm_out += ret;
+    while (offset < page_len) {
+        size_t consumed = 0;
+        if (!impl_->demuxer.push_bytes(page_data + offset, page_len - offset, consumed)) {
+            return -1;
+        }
+        if (consumed == 0 && !impl_->demuxer.has_packet()) {
+            break;
+        }
+        offset += consumed;
+
+        while (true) {
+            int64_t granule_pos = 0;
+            bool is_bos = false, is_eos = false;
+            int pkt_len = impl_->demuxer.read_packet(impl_->packet_buffer, sizeof(impl_->packet_buffer), 
+                                                     granule_pos, is_bos, is_eos);
+            if (pkt_len <= 0) break;
+
+            const uint8_t* pkt = impl_->packet_buffer;
+            if (is_vorbis_header(pkt, pkt_len, VORBIS_PACKET_ID) ||
+                is_vorbis_header(pkt, pkt_len, VORBIS_PACKET_COMMENT) ||
+                is_vorbis_header(pkt, pkt_len, VORBIS_PACKET_SETUP)) {
+                parse_header_packet(pkt, pkt_len);
+            } else if (has_headers()) {
+                int ret = decode_packet(pkt, pkt_len, out_pcm + total_pcm_out, max_out_samples - total_pcm_out);
+                if (ret > 0) {
+                    total_pcm_out += ret;
+                }
+                if (is_eos && total_pcm_out == 0 && impl_->prev_blocksize > 0) {
+                    // Flush overlap buffer on EOS for single-packet streams
+                    size_t fl_samples = impl_->prev_blocksize / 2;
+                    for (size_t i = 0; i < fl_samples && (total_pcm_out + impl_->info.channels) <= max_out_samples; ++i) {
+                        for (uint8_t c = 0; c < impl_->info.channels; ++c) {
+                            out_pcm[total_pcm_out++] = impl_->overlap_buffer[c][i];
+                        }
+                    }
+                }
             }
         }
     }
