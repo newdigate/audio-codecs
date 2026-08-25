@@ -317,11 +317,11 @@ git commit -m "feat(aac): implement Huffman spectral decoding and non-linear req
   - `void apply_ms_stereo(float* left_spec, float* right_spec, const bool* ms_used, const int* swb_offsets, size_t num_swb);`
   - `void apply_tns_filter(float* spec, const TnsData& tns_data, const int* swb_offsets, size_t num_swb);`
 
-- [ ] **Step 1: Write the failing test**
-- [ ] **Step 2: Run test to verify it fails**
-- [ ] **Step 3: Implement stereo processor and TNS filter**
-- [ ] **Step 4: Run test to verify it passes**
-- [ ] **Step 5: Commit**
+- [x] **Step 1: Write the failing test**
+- [x] **Step 2: Run test to verify it fails**
+- [x] **Step 3: Implement stereo processor and TNS filter**
+- [x] **Step 4: Run test to verify it passes**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/aac/decoder/stereo_processor.h src/aac/decoder/stereo_processor.cpp src/aac/decoder/tns_decoder.h src/aac/decoder/tns_decoder.cpp tests/test_aac_stereo_tns.cpp
