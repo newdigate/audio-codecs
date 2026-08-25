@@ -54,7 +54,7 @@ uint32_t vorbis_pack_float32(float val) {
 void vorbis_generate_window(float* out_window, size_t n) {
     if (!out_window || n == 0) return;
     for (size_t i = 0; i < n; ++i) {
-        double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n) * (kPi * 0.5);
+        double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n) * kPi;
         double s = std::sin(arg);
         out_window[i] = static_cast<float>(std::sin(0.5 * kPi * s * s));
     }
@@ -63,7 +63,6 @@ void vorbis_generate_window(float* out_window, size_t n) {
 void vorbis_generate_slope_window(float* out_window, size_t n_curr, size_t n_prev, size_t n_next) {
     if (!out_window || n_curr == 0) return;
 
-    // Default symmetric window if sizes match
     if (n_curr == n_prev && n_curr == n_next) {
         vorbis_generate_window(out_window, n_curr);
         return;
@@ -78,7 +77,7 @@ void vorbis_generate_slope_window(float* out_window, size_t n_curr, size_t n_pre
             out_window[i] = 0.0f;
         }
         for (size_t i = 0; i < n_prev / 2; ++i) {
-            double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n_prev) * (kPi * 0.5);
+            double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n_prev) * kPi;
             double s = std::sin(arg);
             out_window[pad + i] = static_cast<float>(std::sin(0.5 * kPi * s * s));
         }
@@ -87,7 +86,7 @@ void vorbis_generate_slope_window(float* out_window, size_t n_curr, size_t n_pre
         }
     } else {
         for (size_t i = 0; i < n_curr / 2; ++i) {
-            double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n_curr) * (kPi * 0.5);
+            double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n_curr) * kPi;
             double s = std::sin(arg);
             out_window[i] = static_cast<float>(std::sin(0.5 * kPi * s * s));
         }
@@ -100,7 +99,7 @@ void vorbis_generate_slope_window(float* out_window, size_t n_curr, size_t n_pre
             out_window[i] = 1.0f;
         }
         for (size_t i = 0; i < n_next / 2; ++i) {
-            double arg = (static_cast<double>(n_next / 2 + i) + 0.5) / static_cast<double>(n_next) * (kPi * 0.5);
+            double arg = (static_cast<double>(n_next / 2 + i) + 0.5) / static_cast<double>(n_next) * kPi;
             double s = std::sin(arg);
             out_window[n_curr - pad - n_next / 2 + i] = static_cast<float>(std::sin(0.5 * kPi * s * s));
         }
@@ -109,7 +108,7 @@ void vorbis_generate_slope_window(float* out_window, size_t n_curr, size_t n_pre
         }
     } else {
         for (size_t i = n_curr / 2; i < n_curr; ++i) {
-            double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n_curr) * (kPi * 0.5);
+            double arg = (static_cast<double>(i) + 0.5) / static_cast<double>(n_curr) * kPi;
             double s = std::sin(arg);
             out_window[i] = static_cast<float>(std::sin(0.5 * kPi * s * s));
         }

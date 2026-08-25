@@ -29,9 +29,11 @@ int main() {
     float win[256];
     vorbis_generate_window(win, 256);
     assert(win[0] >= 0.0f && win[255] >= 0.0f);
-    // Symmetry check
+    // Symmetry & partition-of-unity check
     for (int i = 0; i < 128; ++i) {
-        float sum_sq = win[i] * win[i] + win[255 - i] * win[255 - i];
+        float diff = std::fabs(win[i] - win[255 - i]);
+        assert(diff < 1e-4f);
+        float sum_sq = win[i] * win[i] + win[i + 128] * win[i + 128];
         assert(std::fabs(sum_sq - 1.0f) < 1e-4f);
     }
 
