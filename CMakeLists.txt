@@ -79,6 +79,7 @@ target_link_libraries(audio_codecs_vorbis PUBLIC audio_codecs_core audio_codecs_
 add_library(audio_codecs_aac STATIC
     src/aac/aac_tables.cpp
     src/aac/aac_mdct.cpp
+    src/aac/adts_parser.cpp
 )
 target_link_libraries(audio_codecs_aac PUBLIC audio_codecs_core)
 
@@ -234,6 +235,10 @@ add_test(NAME AacTablesTest COMMAND test_aac_tables)
 add_executable(test_aac_mdct tests/test_aac_mdct.cpp)
 target_link_libraries(test_aac_mdct PRIVATE audio_codecs_aac)
 add_test(NAME AacMdctTest COMMAND test_aac_mdct)
+
+add_executable(test_adts_framing tests/test_adts_framing.cpp)
+target_link_libraries(test_adts_framing PRIVATE audio_codecs_aac)
+add_test(NAME AdtsFramingTest COMMAND test_adts_framing)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
