@@ -37,8 +37,11 @@ struct VorbisDecoder::Impl {
     alignas(16) float window[VORBIS_MAX_BLOCK_SIZE]{0};
     alignas(16) uint8_t packet_buffer[65536]{0};
 
+    bool is_ogg_stream{false};
+
     void reset() {
         demuxer.reset();
+        is_ogg_stream = false;
         prev_blocksize = 0;
         overlap_len = 0;
         std::memset(overlap_buffer, 0, sizeof(overlap_buffer));
@@ -278,8 +281,9 @@ int VorbisDecoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
                                 float* out_pcm, size_t max_out_samples) {
     if (!in_data || in_bytes == 0 || !out_pcm) return -1;
 
-    // Auto-detect Ogg framing (begins with "OggS") or raw Vorbis packet
-    if (in_bytes >= 4 && in_data[0] == 'O' && in_data[1] == 'g' && in_data[2] == 'g' && in_data[3] == 'S') {
+    // Auto-detect Ogg framing (begins with "OggS" or already in Ogg stream mode)
+    if (impl_->is_ogg_stream || (in_bytes >= 4 && in_data[0] == 'O' && in_data[1] == 'g' && in_data[2] == 'g' && in_data[3] == 'S')) {
+        impl_->is_ogg_stream = true;
         return decode_ogg_page(in_data, in_bytes, out_pcm, max_out_samples);
     } else {
         return decode_packet(in_data, in_bytes, out_pcm, max_out_samples);

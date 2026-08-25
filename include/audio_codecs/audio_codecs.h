@@ -6,3 +6,5 @@
 #include "audio_codecs/mp3/mp3_encoder.h"
 #include "audio_codecs/flac/flac_decoder.h"
 #include "audio_codecs/flac/flac_encoder.h"
+#include "audio_codecs/ogg.h"
+#include "audio_codecs/vorbis.h"

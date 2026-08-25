@@ -1,16 +1,61 @@
 # audio-codecs
 
-Zero-allocation, clean-room C++17 implementations of MP3 (ISO/IEC 11172-3 Layer III) and FLAC (RFC 9639) audio encoders and decoders under the MIT license.
+Zero-allocation, clean-room C++17 implementations of MP3 (ISO/IEC 11172-3 Layer III), FLAC (RFC 9639), and Ogg/Vorbis I (RFC 3533 & Xiph Vorbis I specification) audio encoders and decoders under the MIT license.
 
 ## Features
 
 - **No runtime dependencies**: Pure C++17 without external libraries.
-- **Embedded-friendly**: Zero heap allocations during steady-state frame encode/decode (static pre-allocated buffers).
+- **Embedded-friendly**: Zero heap allocations during steady-state frame encode/decode (static pre-allocated state buffers).
 - **Polymorphic interfaces**: Unified `AudioEncoder` and `AudioDecoder` base classes.
+- **Ogg**: RFC 3533 bitstream framing container, streaming `OggDemuxer` with packet assembly and CRC-32 polynomial verification, and `OggMuxer` page segmenter.
+- **Vorbis I**: Full Vorbis I audio codec compliant with Xiph Vorbis I specification:
+  - Canonical Huffman codebook engine with lookup types 0, 1, and 2.
+  - Fast $O(N \log N)$ Forward MDCT and Inverse IMDCT with TDAC sine-of-sine windowing.
+  - Floor 1 piecewise linear Bark-scale spectral envelope synthesis.
+  - Residue types 0, 1, and 2 with polar channel coupling / stereo decoupling (Mapping 0).
+  - Mode switching between short (512) and long (2048) block sizes.
+  - Streaming `VorbisDecoder` and `VorbisEncoder` with Ogg page integration.
 - **MP3**: Full MPEG-1 Layer III encoder (MDCT, psychoacoustic model, Huffman) and decoder (Huffman, requantization, IMDCT, synthesis filter).
 - **FLAC**: Lossless encoder and decoder supporting Fixed/LPC prediction (Levinson-Durbin up to order 32), Rice coding, Mid/Side stereo decorrelation, CRC-8/CRC-16 validation, and MD5 streaming checksums. Bit-exact integer (`int16_t`, `int32_t`) and normalized float (`float`) I/O.
 
 ## Quick Start
+
+### Ogg / Vorbis
+
+#### Decoding
+```cpp
+#include "audio_codecs/vorbis.h"
+
+audio_codecs::vorbis::VorbisDecoder decoder;
+decoder.init({});
+
+// Feed incoming Ogg bitstream pages or raw Vorbis packets
+float pcm_out[8192];
+int samples = decoder.decode_frame(ogg_data, ogg_size, pcm_out, sizeof(pcm_out) / sizeof(float));
+if (samples > 0) {
+    // Process decoded interleaved float PCM samples
+}
+```
+
+#### Encoding
+```cpp
+#include "audio_codecs/vorbis.h"
+
+audio_codecs::vorbis::VorbisEncoder encoder;
+audio_codecs::AudioConfig config;
+config.channels = 2;
+config.sample_rate = 44100;
+config.bitrate_kbps = 128;
+encoder.init(config);
+
+uint8_t ogg_out[65536];
+int bytes = encoder.encode_frame(in_pcm, num_samples, ogg_out, sizeof(ogg_out));
+
+// Flush at end of stream
+int flush_bytes = encoder.flush(ogg_out + bytes, sizeof(ogg_out) - bytes);
+```
+
+---
 
 ### MP3
 
