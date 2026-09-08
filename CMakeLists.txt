@@ -361,6 +361,9 @@ add_executable(test_aiff_roundtrip tests/test_aiff_roundtrip.cpp)
 target_link_libraries(test_aiff_roundtrip PRIVATE audio_codecs_aiff)
 add_test(NAME AiffRoundtripTest COMMAND test_aiff_roundtrip)
 
+add_executable(test_preview_types tests/test_preview_types.cpp)
+add_test(NAME PreviewTypesTest COMMAND test_preview_types)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
