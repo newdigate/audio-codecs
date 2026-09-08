@@ -48,7 +48,6 @@ size_t MemoryWriter::read(uint8_t* dest, size_t bytes) {
 bool MemoryWriter::seek(uint64_t position) {
     if (position > capacity_) return false;
     pos_ = static_cast<size_t>(position);
-    if (pos_ > length_) length_ = pos_;
     return true;
 }
 

@@ -9,11 +9,13 @@ public:
     explicit TeensyFileStream(TFile& file) : file_(file) {}
 
     size_t read(uint8_t* dest, size_t bytes) override {
-        return static_cast<size_t>(file_.read(dest, bytes));
+        auto res = file_.read(dest, bytes);
+        return (res > 0) ? static_cast<size_t>(res) : 0;
     }
 
     size_t write(const uint8_t* src, size_t bytes) override {
-        return static_cast<size_t>(file_.write(src, bytes));
+        auto res = file_.write(src, bytes);
+        return (res > 0) ? static_cast<size_t>(res) : 0;
     }
 
     bool seek(uint64_t position) override {

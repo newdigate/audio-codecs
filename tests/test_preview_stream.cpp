@@ -78,6 +78,16 @@ int main() {
     assert(r == sizeof(data));
     assert(std::strcmp(reinterpret_cast<char*>(read_buf), "HelloAPVStream!") == 0);
 
+    // Verify MemoryWriter::seek past length_ does NOT expand length_ until write()
+    assert(mw.seek(100));
+    assert(mw.position() == 100);
+    assert(mw.size() == sizeof(data)); // Size remains unchanged!
+    const uint8_t extra[] = "123";
+    written = mw.write(extra, 3);
+    assert(written == 3);
+    assert(mw.position() == 103);
+    assert(mw.size() == 103); // Size expanded after write
+
     // MemoryWriter seek out-of-bounds
     assert(!mw.seek(sizeof(mem) + 1));
 
@@ -92,6 +102,20 @@ int main() {
     r = stream.read(read_buf, sizeof(data));
     assert(r == sizeof(data));
     assert(std::strcmp(reinterpret_cast<char*>(read_buf), "HelloAPVStream!") == 0);
+
+    // TeensyFileStream error handling (negative return codes must return 0 instead of underflowing)
+    struct FailingMockFile {
+        int read(uint8_t*, size_t) { return -1; }
+        int write(const uint8_t*, size_t) { return -1; }
+        bool seek(uint64_t) { return false; }
+        uint64_t position() const { return 0; }
+        uint64_t size() const { return 0; }
+        void flush() {}
+    };
+    FailingMockFile failing_file;
+    TeensyFileStream<FailingMockFile> failing_stream(failing_file);
+    assert(failing_stream.read(read_buf, sizeof(read_buf)) == 0);
+    assert(failing_stream.write(read_buf, sizeof(read_buf)) == 0);
 
     // 3. FileStreamReader and FileStreamWriter test
     std::FILE* tmp = std::tmpfile();
