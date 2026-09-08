@@ -1,7 +1,6 @@
 #include "audio_codecs/preview/preview_types.h"
 #include <cassert>
 #include <cstddef>
-#include <cstring>
 #include <iostream>
 
 using namespace audio_codecs::preview;

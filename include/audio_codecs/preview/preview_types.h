@@ -2,6 +2,10 @@
 #include <cstdint>
 #include <cstddef>
 
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#error "Big-endian architectures require byte swapping for APV1 file format"
+#endif
+
 namespace audio_codecs::preview {
 
 constexpr uint32_t APV_MAGIC = 0x31565041; // "APV1" in ASCII Little-Endian

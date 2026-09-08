@@ -1,5 +1,6 @@
 #include "audio_codecs/preview/preview_stream.h"
 #include <algorithm>
+#include <limits>
 
 namespace audio_codecs::preview {
 
@@ -8,7 +9,7 @@ MemoryReader::MemoryReader(const uint8_t* data, size_t size)
     : data_(data), size_(size), pos_(0) {}
 
 size_t MemoryReader::read(uint8_t* dest, size_t bytes) {
-    if (!data_ || pos_ >= size_ || bytes == 0) return 0;
+    if (!dest || !data_ || pos_ >= size_ || bytes == 0) return 0;
     size_t to_read = std::min(bytes, size_ - pos_);
     std::memcpy(dest, data_ + pos_, to_read);
     pos_ += to_read;
@@ -29,7 +30,7 @@ MemoryWriter::MemoryWriter(uint8_t* buffer, size_t capacity)
     : buffer_(buffer), capacity_(capacity), pos_(0), length_(0) {}
 
 size_t MemoryWriter::write(const uint8_t* src, size_t bytes) {
-    if (!buffer_ || pos_ >= capacity_ || bytes == 0) return 0;
+    if (!src || !buffer_ || pos_ >= capacity_ || bytes == 0) return 0;
     size_t to_write = std::min(bytes, capacity_ - pos_);
     std::memcpy(buffer_ + pos_, src, to_write);
     pos_ += to_write;
@@ -38,7 +39,7 @@ size_t MemoryWriter::write(const uint8_t* src, size_t bytes) {
 }
 
 size_t MemoryWriter::read(uint8_t* dest, size_t bytes) {
-    if (!buffer_ || pos_ >= length_ || bytes == 0) return 0;
+    if (!dest || !buffer_ || pos_ >= length_ || bytes == 0) return 0;
     size_t to_read = std::min(bytes, length_ - pos_);
     std::memcpy(dest, buffer_ + pos_, to_read);
     pos_ += to_read;
@@ -71,6 +72,7 @@ size_t FileStreamReader::read(uint8_t* dest, size_t bytes) {
 
 bool FileStreamReader::seek(uint64_t position) {
     if (!fp_) return false;
+    if (position > static_cast<uint64_t>(std::numeric_limits<long>::max())) return false;
     return std::fseek(fp_, static_cast<long>(position), SEEK_SET) == 0;
 }
 
@@ -97,6 +99,7 @@ size_t FileStreamWriter::read(uint8_t* dest, size_t bytes) {
 
 bool FileStreamWriter::seek(uint64_t position) {
     if (!fp_) return false;
+    if (position > static_cast<uint64_t>(std::numeric_limits<long>::max())) return false;
     return std::fseek(fp_, static_cast<long>(position), SEEK_SET) == 0;
 }
 

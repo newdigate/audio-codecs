@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <limits>
 
 using namespace audio_codecs::preview;
 
@@ -91,6 +92,11 @@ int main() {
     // MemoryWriter seek out-of-bounds
     assert(!mw.seek(sizeof(mem) + 1));
 
+    // Null pointer checks
+    assert(mr.read(nullptr, 10) == 0);
+    assert(mw.write(nullptr, 10) == 0);
+    assert(mw.read(nullptr, 10) == 0);
+
     // 2. TeensyFileStream adapter test
     MockTeensyFile mock_file;
     TeensyFileStream<MockTeensyFile> stream(mock_file);
@@ -141,6 +147,9 @@ int main() {
         r = fsr.read(read_buf, sizeof(data));
         assert(r == sizeof(data));
         assert(std::strcmp(reinterpret_cast<char*>(read_buf), "HelloAPVStream!") == 0);
+        // Bounds check on large seek (LONG_MAX)
+        assert(!fsr.seek(static_cast<uint64_t>(std::numeric_limits<long>::max()) + 1ULL));
+        assert(!fsw.seek(static_cast<uint64_t>(std::numeric_limits<long>::max()) + 1ULL));
     }
     std::fclose(tmp);
 
