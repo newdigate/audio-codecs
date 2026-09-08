@@ -10,10 +10,10 @@ PreviewReader::PreviewReader() {
 }
 
 bool PreviewReader::init(SeekableReader& preview_file) {
-    file_ = &preview_file;
-    if (!file_ || !file_->seek(0)) return false;
+    file_ = nullptr;
+    if (!preview_file.seek(0)) return false;
 
-    if (file_->read(reinterpret_cast<uint8_t*>(&header_), sizeof(header_)) != sizeof(header_)) {
+    if (preview_file.read(reinterpret_cast<uint8_t*>(&header_), sizeof(header_)) != sizeof(header_)) {
         return false;
     }
 
@@ -29,6 +29,7 @@ bool PreviewReader::init(SeekableReader& preview_file) {
         return false;
     }
 
+    file_ = &preview_file;
     cached_lod_ = 0xFF;
     cached_chunk_start_ = 0;
     cached_chunk_count_ = 0;
@@ -152,7 +153,8 @@ size_t PreviewReader::read_preview_stereo(uint32_t start_ms, uint32_t duration_m
             if (c_end >= lod.chunk_count) c_end = lod.chunk_count - 1;
             if (c_end < c_start) c_end = c_start;
 
-            int8_t l_min = 0, l_max = 0, r_min = 0, r_max = 0;
+            int8_t l_min = 127, l_max = -128, r_min = 127, r_max = -128;
+            bool any_read = false;
             for (uint32_t c = c_start; c <= c_end; ++c) {
                 WaveformPointStereo pt{};
                 if (get_chunk_stereo(lod_idx, c, pt)) {
@@ -160,7 +162,11 @@ size_t PreviewReader::read_preview_stereo(uint32_t start_ms, uint32_t duration_m
                     if (pt.left_max > l_max) l_max = pt.left_max;
                     if (pt.right_min < r_min) r_min = pt.right_min;
                     if (pt.right_max > r_max) r_max = pt.right_max;
+                    any_read = true;
                 }
+            }
+            if (!any_read) {
+                l_min = 0; l_max = 0; r_min = 0; r_max = 0;
             }
             out_points[i] = {l_min, l_max, r_min, r_max};
         } else {
@@ -219,13 +225,18 @@ size_t PreviewReader::read_preview(uint32_t start_ms, uint32_t duration_ms,
             if (c_end >= lod.chunk_count) c_end = lod.chunk_count - 1;
             if (c_end < c_start) c_end = c_start;
 
-            int8_t m_min = 0, m_max = 0;
+            int8_t m_min = 127, m_max = -128;
+            bool any_read = false;
             for (uint32_t c = c_start; c <= c_end; ++c) {
                 WaveformPointMono pt{};
                 if (get_chunk_mono(lod_idx, c, pt)) {
                     if (pt.min < m_min) m_min = pt.min;
                     if (pt.max > m_max) m_max = pt.max;
+                    any_read = true;
                 }
+            }
+            if (!any_read) {
+                m_min = 0; m_max = 0;
             }
             out_points[i] = {m_min, m_max};
         } else {

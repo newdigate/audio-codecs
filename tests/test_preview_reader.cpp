@@ -196,11 +196,14 @@ void test_interpolation_smoothness() {
 }
 
 void test_invalid_headers() {
+    WaveformPointStereo dummy[4];
+
     // 1. Buffer too small
     uint8_t tiny_buf[64]{0};
     MemoryReader r1(tiny_buf, sizeof(tiny_buf));
     PreviewReader pr1;
     assert(!pr1.init(r1));
+    assert(pr1.read_preview_stereo(0, 10, dummy, 4) == 0);
 
     // 2. Bad magic
     ApvHeader bad_hdr{};
@@ -209,6 +212,7 @@ void test_invalid_headers() {
     MemoryReader r2(reinterpret_cast<uint8_t*>(&bad_hdr), sizeof(bad_hdr));
     PreviewReader pr2;
     assert(!pr2.init(r2));
+    assert(pr2.read_preview_stereo(0, 10, dummy, 4) == 0);
 
     // 3. Bad version
     bad_hdr.magic = APV_MAGIC;
@@ -216,6 +220,7 @@ void test_invalid_headers() {
     MemoryReader r3(reinterpret_cast<uint8_t*>(&bad_hdr), sizeof(bad_hdr));
     PreviewReader pr3;
     assert(!pr3.init(r3));
+    assert(pr3.read_preview_stereo(0, 10, dummy, 4) == 0);
 
     // 4. Bad channels
     bad_hdr.version = APV_VERSION;
@@ -223,6 +228,56 @@ void test_invalid_headers() {
     MemoryReader r4(reinterpret_cast<uint8_t*>(&bad_hdr), sizeof(bad_hdr));
     PreviewReader pr4;
     assert(!pr4.init(r4));
+    assert(pr4.read_preview_stereo(0, 10, dummy, 4) == 0);
+}
+
+void test_dc_offset_decimation() {
+    // Construct an APV file where chunks have purely positive min/max: min = 20, max = 50
+    ApvHeader hdr{};
+    hdr.magic = APV_MAGIC;
+    hdr.version = APV_VERSION;
+    hdr.channels = 2;
+    hdr.bytes_per_chunk = 4;
+    hdr.sample_rate = 44100;
+    hdr.samples_per_base_chunk = 128;
+    hdr.total_pcm_frames = 64 * 128;
+    hdr.duration_ms = (64 * 128 * 1000) / 44100;
+    hdr.lod_count = 1;
+    hdr.lods[0].downsample_ratio = 1;
+    hdr.lods[0].chunk_count = 64;
+    hdr.lods[0].file_offset = sizeof(ApvHeader);
+
+    std::vector<uint8_t> apv_buf(sizeof(ApvHeader) + 64 * sizeof(WaveformPointStereo));
+    std::memcpy(apv_buf.data(), &hdr, sizeof(hdr));
+
+    WaveformPointStereo* chunks = reinterpret_cast<WaveformPointStereo*>(apv_buf.data() + sizeof(ApvHeader));
+    for (size_t c = 0; c < 64; ++c) {
+        chunks[c] = {20, 50, 25, 45};
+    }
+
+    MemoryReader reader(apv_buf.data(), apv_buf.size());
+    PreviewReader pr;
+    assert(pr.init(reader));
+
+    // Decimate to 8 points (each point spans 8 chunks)
+    WaveformPointStereo stereo_pts[8]{};
+    size_t n = pr.read_preview_stereo(0, pr.duration_ms(), stereo_pts, 8);
+    assert(n == 8);
+    for (size_t i = 0; i < 8; ++i) {
+        // min should be 20/25, not 0!
+        assert(stereo_pts[i].left_min == 20);
+        assert(stereo_pts[i].left_max == 50);
+        assert(stereo_pts[i].right_min == 25);
+        assert(stereo_pts[i].right_max == 45);
+    }
+
+    WaveformPointMono mono_pts[8]{};
+    n = pr.read_preview(0, pr.duration_ms(), mono_pts, 8);
+    assert(n == 8);
+    for (size_t i = 0; i < 8; ++i) {
+        assert(mono_pts[i].min == 20);
+        assert(mono_pts[i].max == 50);
+    }
 }
 
 int main() {
@@ -232,6 +287,7 @@ int main() {
     test_lod_selection();
     test_interpolation_smoothness();
     test_invalid_headers();
+    test_dc_offset_decimation();
 
     std::cout << "test_preview_reader PASSED\n";
     return 0;
