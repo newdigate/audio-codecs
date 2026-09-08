@@ -13,6 +13,9 @@ bool PreviewGenerator::init(SeekableReader& audio_source,
                             bool stereo) {
     if (channels == 0 || channels > 2) return false;
 
+    SeekableReader* reader = dynamic_cast<SeekableReader*>(&preview_dest);
+    if (!reader) return false;
+
     source_ = &audio_source;
     dest_ = &preview_dest;
     decoder_ = decoder;
@@ -34,16 +37,74 @@ bool PreviewGenerator::init(SeekableReader& audio_source,
     lod0_chunk_count_ = 0;
     lod1_chunk_count_ = 0;
     lod2_chunk_count_ = 0;
+    lod_reduction_group_ = 0;
     state_ = State::Init;
+    return true;
+}
+
+bool PreviewGenerator::reduce_lod_chunk(uint8_t src_lod, uint8_t dst_lod, uint32_t group_idx, uint32_t group_size) {
+    if (!dest_ || group_size == 0 || group_size > 16) return false;
+
+    SeekableReader* reader = dynamic_cast<SeekableReader*>(dest_);
+    if (!reader) return false;
+
+    uint64_t read_offset = header_.lods[src_lod].file_offset + (static_cast<uint64_t>(group_idx) * 16 * header_.bytes_per_chunk);
+    if (!dest_->seek(read_offset)) return false;
+
+    if (stereo_) {
+        WaveformPointStereo group_chunks[16];
+        size_t bytes_to_read = group_size * sizeof(WaveformPointStereo);
+        if (reader->read(reinterpret_cast<uint8_t*>(group_chunks), bytes_to_read) != bytes_to_read) {
+            return false;
+        }
+
+        int8_t l_min = 0, l_max = 0, r_min = 0, r_max = 0;
+        for (uint32_t i = 0; i < group_size; ++i) {
+            if (group_chunks[i].left_min < l_min) l_min = group_chunks[i].left_min;
+            if (group_chunks[i].left_max > l_max) l_max = group_chunks[i].left_max;
+            if (group_chunks[i].right_min < r_min) r_min = group_chunks[i].right_min;
+            if (group_chunks[i].right_max > r_max) r_max = group_chunks[i].right_max;
+        }
+        WaveformPointStereo pt{l_min, l_max, r_min, r_max};
+
+        uint64_t write_offset = header_.lods[dst_lod].file_offset + (static_cast<uint64_t>(group_idx) * sizeof(WaveformPointStereo));
+        if (!dest_->seek(write_offset)) return false;
+        if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
+            return false;
+        }
+    } else {
+        WaveformPointMono group_chunks[16];
+        size_t bytes_to_read = group_size * sizeof(WaveformPointMono);
+        if (reader->read(reinterpret_cast<uint8_t*>(group_chunks), bytes_to_read) != bytes_to_read) {
+            return false;
+        }
+
+        int8_t m_min = 0, m_max = 0;
+        for (uint32_t i = 0; i < group_size; ++i) {
+            if (group_chunks[i].min < m_min) m_min = group_chunks[i].min;
+            if (group_chunks[i].max > m_max) m_max = group_chunks[i].max;
+        }
+        WaveformPointMono pt{m_min, m_max};
+
+        uint64_t write_offset = header_.lods[dst_lod].file_offset + (static_cast<uint64_t>(group_idx) * sizeof(WaveformPointMono));
+        if (!dest_->seek(write_offset)) return false;
+        if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
+            return false;
+        }
+    }
     return true;
 }
 
 GeneratorStatus PreviewGenerator::step(size_t chunk_budget) {
     switch (state_) {
         case State::Init: {
-            if (!dest_->seek(0)) return GeneratorStatus::ErrorDest;
+            if (!dest_->seek(0)) {
+                state_ = State::Error;
+                return GeneratorStatus::ErrorDest;
+            }
             uint8_t zero_hdr[128]{0};
             if (dest_->write(zero_hdr, sizeof(zero_hdr)) != sizeof(zero_hdr)) {
+                state_ = State::Error;
                 return GeneratorStatus::ErrorDest;
             }
             header_.lods[0].file_offset = 128;
@@ -60,14 +121,24 @@ GeneratorStatus PreviewGenerator::step(size_t chunk_budget) {
                 size_t bytes_needed = frames_to_read * channels_ * sizeof(int16_t);
                 size_t bytes_read = source_->read(reinterpret_cast<uint8_t*>(frame_buf_), bytes_needed);
                 if (bytes_read == 0) {
+                    if (source_->size() > 0 && source_->position() < source_->size()) {
+                        state_ = State::Error;
+                        return GeneratorStatus::ErrorSource;
+                    }
                     header_.lods[0].chunk_count = lod0_chunk_count_;
+                    lod_reduction_group_ = 0;
                     state_ = State::GenerateLOD1;
                     return GeneratorStatus::Working;
                 }
 
                 size_t frames_read = bytes_read / (channels_ * sizeof(int16_t));
                 if (frames_read == 0) {
+                    if (source_->size() > 0 && source_->position() < source_->size()) {
+                        state_ = State::Error;
+                        return GeneratorStatus::ErrorSource;
+                    }
                     header_.lods[0].chunk_count = lod0_chunk_count_;
+                    lod_reduction_group_ = 0;
                     state_ = State::GenerateLOD1;
                     return GeneratorStatus::Working;
                 }
@@ -85,6 +156,7 @@ GeneratorStatus PreviewGenerator::step(size_t chunk_budget) {
                     }
                     WaveformPointStereo pt{l_min, l_max, r_min, r_max};
                     if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
+                        state_ = State::Error;
                         return GeneratorStatus::ErrorDest;
                     }
                 } else {
@@ -100,6 +172,7 @@ GeneratorStatus PreviewGenerator::step(size_t chunk_budget) {
                     }
                     WaveformPointMono pt{m_min, m_max};
                     if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
+                        state_ = State::Error;
                         return GeneratorStatus::ErrorDest;
                     }
                 }
@@ -118,66 +191,32 @@ GeneratorStatus PreviewGenerator::step(size_t chunk_budget) {
 
             if (lod0_chunk_count_ == 0) {
                 header_.lods[1].chunk_count = 0;
+                lod_reduction_group_ = 0;
                 state_ = State::GenerateLOD2;
                 return GeneratorStatus::Working;
             }
-
-            SeekableReader* reader = dynamic_cast<SeekableReader*>(dest_);
-            if (!reader) return GeneratorStatus::ErrorDest;
 
             uint32_t full_groups = lod0_chunk_count_ / 16;
             uint32_t remainder = lod0_chunk_count_ % 16;
             uint32_t total_lod1 = full_groups + (remainder ? 1 : 0);
 
-            for (uint32_t g = 0; g < total_lod1; ++g) {
-                uint32_t chunks_in_group = (g < full_groups) ? 16 : remainder;
-                uint64_t read_offset = header_.lods[0].file_offset + (static_cast<uint64_t>(g) * 16 * header_.bytes_per_chunk);
-                if (!dest_->seek(read_offset)) return GeneratorStatus::ErrorDest;
-
-                if (stereo_) {
-                    WaveformPointStereo group_chunks[16];
-                    size_t bytes_to_read = chunks_in_group * sizeof(WaveformPointStereo);
-                    if (reader->read(reinterpret_cast<uint8_t*>(group_chunks), bytes_to_read) != bytes_to_read) {
-                        return GeneratorStatus::ErrorDest;
-                    }
-
-                    int8_t l_min = 0, l_max = 0, r_min = 0, r_max = 0;
-                    for (uint32_t i = 0; i < chunks_in_group; ++i) {
-                        if (group_chunks[i].left_min < l_min) l_min = group_chunks[i].left_min;
-                        if (group_chunks[i].left_max > l_max) l_max = group_chunks[i].left_max;
-                        if (group_chunks[i].right_min < r_min) r_min = group_chunks[i].right_min;
-                        if (group_chunks[i].right_max > r_max) r_max = group_chunks[i].right_max;
-                    }
-                    WaveformPointStereo pt{l_min, l_max, r_min, r_max};
-                    uint64_t write_offset = lod1_offset + (static_cast<uint64_t>(g) * sizeof(WaveformPointStereo));
-                    if (!dest_->seek(write_offset)) return GeneratorStatus::ErrorDest;
-                    if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
-                        return GeneratorStatus::ErrorDest;
-                    }
-                } else {
-                    WaveformPointMono group_chunks[16];
-                    size_t bytes_to_read = chunks_in_group * sizeof(WaveformPointMono);
-                    if (reader->read(reinterpret_cast<uint8_t*>(group_chunks), bytes_to_read) != bytes_to_read) {
-                        return GeneratorStatus::ErrorDest;
-                    }
-
-                    int8_t m_min = 0, m_max = 0;
-                    for (uint32_t i = 0; i < chunks_in_group; ++i) {
-                        if (group_chunks[i].min < m_min) m_min = group_chunks[i].min;
-                        if (group_chunks[i].max > m_max) m_max = group_chunks[i].max;
-                    }
-                    WaveformPointMono pt{m_min, m_max};
-                    uint64_t write_offset = lod1_offset + (static_cast<uint64_t>(g) * sizeof(WaveformPointMono));
-                    if (!dest_->seek(write_offset)) return GeneratorStatus::ErrorDest;
-                    if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
-                        return GeneratorStatus::ErrorDest;
-                    }
+            size_t chunks_done = 0;
+            while (chunks_done < chunk_budget && lod_reduction_group_ < total_lod1) {
+                uint32_t group_size = (lod_reduction_group_ < full_groups) ? 16 : remainder;
+                if (!reduce_lod_chunk(0, 1, lod_reduction_group_, group_size)) {
+                    state_ = State::Error;
+                    return GeneratorStatus::ErrorDest;
                 }
+                lod_reduction_group_++;
+                chunks_done++;
             }
 
-            lod1_chunk_count_ = total_lod1;
-            header_.lods[1].chunk_count = lod1_chunk_count_;
-            state_ = State::GenerateLOD2;
+            if (lod_reduction_group_ >= total_lod1) {
+                lod1_chunk_count_ = total_lod1;
+                header_.lods[1].chunk_count = lod1_chunk_count_;
+                lod_reduction_group_ = 0;
+                state_ = State::GenerateLOD2;
+            }
             return GeneratorStatus::Working;
         }
 
@@ -188,66 +227,32 @@ GeneratorStatus PreviewGenerator::step(size_t chunk_budget) {
 
             if (lod1_chunk_count_ == 0) {
                 header_.lods[2].chunk_count = 0;
+                lod_reduction_group_ = 0;
                 state_ = State::FinalizeHeader;
                 return GeneratorStatus::Working;
             }
-
-            SeekableReader* reader = dynamic_cast<SeekableReader*>(dest_);
-            if (!reader) return GeneratorStatus::ErrorDest;
 
             uint32_t full_groups = lod1_chunk_count_ / 16;
             uint32_t remainder = lod1_chunk_count_ % 16;
             uint32_t total_lod2 = full_groups + (remainder ? 1 : 0);
 
-            for (uint32_t g = 0; g < total_lod2; ++g) {
-                uint32_t chunks_in_group = (g < full_groups) ? 16 : remainder;
-                uint64_t read_offset = header_.lods[1].file_offset + (static_cast<uint64_t>(g) * 16 * header_.bytes_per_chunk);
-                if (!dest_->seek(read_offset)) return GeneratorStatus::ErrorDest;
-
-                if (stereo_) {
-                    WaveformPointStereo group_chunks[16];
-                    size_t bytes_to_read = chunks_in_group * sizeof(WaveformPointStereo);
-                    if (reader->read(reinterpret_cast<uint8_t*>(group_chunks), bytes_to_read) != bytes_to_read) {
-                        return GeneratorStatus::ErrorDest;
-                    }
-
-                    int8_t l_min = 0, l_max = 0, r_min = 0, r_max = 0;
-                    for (uint32_t i = 0; i < chunks_in_group; ++i) {
-                        if (group_chunks[i].left_min < l_min) l_min = group_chunks[i].left_min;
-                        if (group_chunks[i].left_max > l_max) l_max = group_chunks[i].left_max;
-                        if (group_chunks[i].right_min < r_min) r_min = group_chunks[i].right_min;
-                        if (group_chunks[i].right_max > r_max) r_max = group_chunks[i].right_max;
-                    }
-                    WaveformPointStereo pt{l_min, l_max, r_min, r_max};
-                    uint64_t write_offset = lod2_offset + (static_cast<uint64_t>(g) * sizeof(WaveformPointStereo));
-                    if (!dest_->seek(write_offset)) return GeneratorStatus::ErrorDest;
-                    if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
-                        return GeneratorStatus::ErrorDest;
-                    }
-                } else {
-                    WaveformPointMono group_chunks[16];
-                    size_t bytes_to_read = chunks_in_group * sizeof(WaveformPointMono);
-                    if (reader->read(reinterpret_cast<uint8_t*>(group_chunks), bytes_to_read) != bytes_to_read) {
-                        return GeneratorStatus::ErrorDest;
-                    }
-
-                    int8_t m_min = 0, m_max = 0;
-                    for (uint32_t i = 0; i < chunks_in_group; ++i) {
-                        if (group_chunks[i].min < m_min) m_min = group_chunks[i].min;
-                        if (group_chunks[i].max > m_max) m_max = group_chunks[i].max;
-                    }
-                    WaveformPointMono pt{m_min, m_max};
-                    uint64_t write_offset = lod2_offset + (static_cast<uint64_t>(g) * sizeof(WaveformPointMono));
-                    if (!dest_->seek(write_offset)) return GeneratorStatus::ErrorDest;
-                    if (dest_->write(reinterpret_cast<const uint8_t*>(&pt), sizeof(pt)) != sizeof(pt)) {
-                        return GeneratorStatus::ErrorDest;
-                    }
+            size_t chunks_done = 0;
+            while (chunks_done < chunk_budget && lod_reduction_group_ < total_lod2) {
+                uint32_t group_size = (lod_reduction_group_ < full_groups) ? 16 : remainder;
+                if (!reduce_lod_chunk(1, 2, lod_reduction_group_, group_size)) {
+                    state_ = State::Error;
+                    return GeneratorStatus::ErrorDest;
                 }
+                lod_reduction_group_++;
+                chunks_done++;
             }
 
-            lod2_chunk_count_ = total_lod2;
-            header_.lods[2].chunk_count = lod2_chunk_count_;
-            state_ = State::FinalizeHeader;
+            if (lod_reduction_group_ >= total_lod2) {
+                lod2_chunk_count_ = total_lod2;
+                header_.lods[2].chunk_count = lod2_chunk_count_;
+                lod_reduction_group_ = 0;
+                state_ = State::FinalizeHeader;
+            }
             return GeneratorStatus::Working;
         }
 
@@ -258,8 +263,12 @@ GeneratorStatus PreviewGenerator::step(size_t chunk_budget) {
             }
             header_.lod_count = 3;
 
-            if (!dest_->seek(0)) return GeneratorStatus::ErrorDest;
+            if (!dest_->seek(0)) {
+                state_ = State::Error;
+                return GeneratorStatus::ErrorDest;
+            }
             if (dest_->write(reinterpret_cast<const uint8_t*>(&header_), sizeof(header_)) != sizeof(header_)) {
+                state_ = State::Error;
                 return GeneratorStatus::ErrorDest;
             }
             dest_->flush();
@@ -287,14 +296,25 @@ bool PreviewGenerator::generate_all() {
 float PreviewGenerator::progress() const {
     if (state_ == State::Done) return 100.0f;
     if (state_ == State::Init) return 0.0f;
-    if (state_ == State::GenerateLOD1) return 90.0f;
-    if (state_ == State::GenerateLOD2) return 95.0f;
-    if (state_ == State::FinalizeHeader) return 99.0f;
-    if (source_ && source_->size() > 0) {
-        float p = (static_cast<float>(source_->position()) / static_cast<float>(source_->size())) * 85.0f;
-        return std::clamp(p, 0.0f, 85.0f);
+    if (state_ == State::DecodeLOD0) {
+        if (source_ && source_->size() > 0) {
+            float p = (static_cast<float>(source_->position()) / static_cast<float>(source_->size())) * 80.0f;
+            return std::clamp(p, 0.0f, 80.0f);
+        }
+        return 40.0f;
     }
-    return 50.0f;
+    if (state_ == State::GenerateLOD1) {
+        uint32_t total_lod1 = (lod0_chunk_count_ + 15) / 16;
+        float frac = (total_lod1 > 0) ? (static_cast<float>(lod_reduction_group_) / total_lod1) : 1.0f;
+        return 80.0f + frac * 10.0f;
+    }
+    if (state_ == State::GenerateLOD2) {
+        uint32_t total_lod2 = (lod1_chunk_count_ + 15) / 16;
+        float frac = (total_lod2 > 0) ? (static_cast<float>(lod_reduction_group_) / total_lod2) : 1.0f;
+        return 90.0f + frac * 9.0f;
+    }
+    if (state_ == State::FinalizeHeader) return 99.0f;
+    return 0.0f;
 }
 
 const ApvHeader& PreviewGenerator::header() const {

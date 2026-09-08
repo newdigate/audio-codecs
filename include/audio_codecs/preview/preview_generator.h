@@ -46,9 +46,11 @@ private:
         return static_cast<int8_t>(std::clamp(v, -128, 127));
     }
 
+    bool reduce_lod_chunk(uint8_t src_lod, uint8_t dst_lod, uint32_t group_idx, uint32_t group_size);
+
     SeekableReader* source_{nullptr};
     SeekableWriter* dest_{nullptr};
-    AudioDecoder* decoder_{nullptr};
+    [[maybe_unused]] AudioDecoder* decoder_{nullptr};
 
     ApvHeader header_{};
     State state_{State::Init};
@@ -61,6 +63,7 @@ private:
     uint32_t lod0_chunk_count_{0};
     uint32_t lod1_chunk_count_{0};
     uint32_t lod2_chunk_count_{0};
+    uint32_t lod_reduction_group_{0};
 
     // Buffer for 1 base chunk (128 frames)
     int16_t frame_buf_[BASE_CHUNK_FRAMES * 2]{0};

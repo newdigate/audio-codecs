@@ -110,10 +110,96 @@ void test_mono_partial_chunks() {
     assert(lod0[1].min < 0);
 }
 
+// Mock writer that does NOT implement SeekableReader
+class WriteOnlyWriter : public SeekableWriter {
+public:
+    size_t write(const uint8_t*, size_t bytes) override { return bytes; }
+    bool seek(uint64_t) override { return true; }
+    uint64_t position() const override { return 0; }
+    uint64_t size() const override { return 0; }
+    void flush() override {}
+};
+
+void test_invalid_destination() {
+    std::vector<int16_t> pcm(256, 0);
+    MemoryReader pcm_reader(reinterpret_cast<const uint8_t*>(pcm.data()), pcm.size() * sizeof(int16_t));
+    WriteOnlyWriter write_only;
+
+    PreviewGenerator generator;
+    // Must fail init because write_only is not a SeekableReader
+    assert(!generator.init(pcm_reader, write_only, nullptr, 44100, 2, true));
+}
+
+// Mock reader simulating premature EOF error
+class PrematureEofReader : public SeekableReader {
+public:
+    size_t read(uint8_t*, size_t) override { return 0; } // Returns 0 despite size > pos
+    bool seek(uint64_t) override { return true; }
+    uint64_t position() const override { return 500; }
+    uint64_t size() const override { return 2000; } // pos < size -> premature EOF
+};
+
+void test_premature_eof_error() {
+    PrematureEofReader bad_reader;
+    std::vector<uint8_t> out_buf(512, 0);
+    MemoryWriter out_writer(out_buf.data(), out_buf.size());
+
+    PreviewGenerator generator;
+    assert(generator.init(bad_reader, out_writer, nullptr, 44100, 2, true));
+
+    // Step 1: Init state -> Working
+    GeneratorStatus s1 = generator.step(64);
+    assert(s1 == GeneratorStatus::Working);
+
+    // Step 2: DecodeLOD0 -> premature EOF -> ErrorSource
+    GeneratorStatus s2 = generator.step(64);
+    assert(s2 == GeneratorStatus::ErrorSource);
+
+    // Subsequent steps remain in Error state
+    GeneratorStatus s3 = generator.step(64);
+    assert(s3 == GeneratorStatus::ErrorDest);
+}
+
+void test_sliced_lod_reduction() {
+    // 512 chunks = 32 LOD1 chunks. With budget 4, LOD1 takes 8 steps.
+    constexpr size_t total_frames = 512 * 128;
+    std::vector<int16_t> pcm(total_frames * 2, 50);
+
+    MemoryReader pcm_reader(reinterpret_cast<const uint8_t*>(pcm.data()), pcm.size() * sizeof(int16_t));
+    std::vector<uint8_t> out_buf(128 + 512 * 4 + 32 * 4 + 2 * 4 + 512, 0);
+    MemoryWriter out_writer(out_buf.data(), out_buf.size());
+
+    PreviewGenerator generator;
+    assert(generator.init(pcm_reader, out_writer, nullptr, 44100, 2, true));
+
+    // Finish Init
+    assert(generator.step(1000) == GeneratorStatus::Working);
+    // Finish LOD 0
+    assert(generator.step(1000) == GeneratorStatus::Working);
+
+    // Now in GenerateLOD1: step with small budget (4 groups per step)
+    size_t lod1_yields = 0;
+    while (generator.header().lods[1].chunk_count == 0) {
+        GeneratorStatus s = generator.step(4);
+        assert(s == GeneratorStatus::Working);
+        lod1_yields++;
+    }
+    // 32 groups / 4 = 8 steps to complete LOD 1
+    assert(lod1_yields >= 8);
+    assert(generator.header().lods[1].chunk_count == 32);
+
+    // Finish remainder
+    assert(generator.generate_all());
+    assert(generator.header().lods[2].chunk_count == 2);
+}
+
 int main() {
     test_stereo_impulse();
     test_cooperative_stepping_and_progress();
     test_mono_partial_chunks();
+    test_invalid_destination();
+    test_premature_eof_error();
+    test_sliced_lod_reduction();
 
     std::cout << "test_preview_generator PASSED\n";
     return 0;
