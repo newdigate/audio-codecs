@@ -368,6 +368,7 @@ add_test(NAME PreviewTypesTest COMMAND test_preview_types)
 add_library(audio_codecs_preview STATIC
     src/preview/preview_stream.cpp
     src/preview/preview_generator.cpp
+    src/preview/preview_reader.cpp
 )
 target_link_libraries(audio_codecs_preview PUBLIC audio_codecs_core)
 
@@ -378,6 +379,10 @@ add_test(NAME PreviewStreamTest COMMAND test_preview_stream)
 add_executable(test_preview_generator tests/test_preview_generator.cpp)
 target_link_libraries(test_preview_generator PRIVATE audio_codecs_preview)
 add_test(NAME PreviewGeneratorTest COMMAND test_preview_generator)
+
+add_executable(test_preview_reader tests/test_preview_reader.cpp)
+target_link_libraries(test_preview_reader PRIVATE audio_codecs_preview)
+add_test(NAME PreviewReaderTest COMMAND test_preview_reader)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
