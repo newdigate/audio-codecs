@@ -52,7 +52,8 @@ bool TempoGenerator::init(preview::SeekableReader* asv_reader,
         return false;
     }
 
-    if (asv_hdr.magic != spectrum::ASV_MAGIC || asv_hdr.version != spectrum::ASV_VERSION) {
+    if (asv_hdr.magic != spectrum::ASV_MAGIC || asv_hdr.version != spectrum::ASV_VERSION ||
+        asv_hdr.sample_rate == 0 || asv_hdr.lod_count == 0) {
         has_error_ = true;
         return false;
     }
@@ -71,6 +72,7 @@ bool TempoGenerator::init(preview::SeekableReader* asv_reader,
     has_error_ = false;
     has_first_beat_ = false;
     last_beat_frame_ = 0;
+    current_period_frames_ = (60.0f * frame_rate_) / 120.0f;
     beat_count_ = 0;
     tempo_points_.clear();
     beat_markers_.clear();
@@ -103,6 +105,7 @@ bool TempoGenerator::init(preview::SeekableReader* asv_reader,
 
 bool TempoGenerator::step(size_t max_frames) {
     if (is_complete_ || has_error_) return false;
+    if (max_frames == 0 && current_frame_ < total_frames_) return true;
 
     size_t frames_to_process = std::min(static_cast<size_t>(total_frames_ - current_frame_), max_frames);
     if (frames_to_process == 0) {
@@ -151,6 +154,7 @@ bool TempoGenerator::step(size_t max_frames) {
                 bm.flags = 0;
                 bm.local_bpm_q16 = static_cast<uint32_t>((60.0f * frame_rate_ / current_period_frames_) * 65536.0f);
                 beat_markers_.push_back(bm);
+                metric_scores_[0] += (nov.bass_flux - nov.snare_flux);
                 beat_count_ = 1;
             }
         } else {

@@ -107,7 +107,8 @@ void test_tempo_generator_invalid_inputs() {
     // Null pointers
     bool ok1 = gen.init(nullptr, nullptr);
     assert(!ok1);
-    assert(gen.has_error());
+    bool err1 = gen.has_error();
+    assert(err1);
 
     // Bad magic
     std::vector<uint8_t> bad_asv(256, 0);
@@ -118,12 +119,90 @@ void test_tempo_generator_invalid_inputs() {
     TempoGenerator gen2;
     bool ok2 = gen2.init(&bad_reader, &att_writer);
     assert(!ok2);
-    assert(gen2.has_error());
+    bool err2 = gen2.has_error();
+    assert(err2);
+
+    // Zero sample_rate
+    AsvHeader zero_sr_hdr{};
+    zero_sr_hdr.magic = ASV_MAGIC;
+    zero_sr_hdr.version = ASV_VERSION;
+    zero_sr_hdr.sample_rate = 0;
+    zero_sr_hdr.lod_count = 1;
+    std::vector<uint8_t> zero_sr_buf(sizeof(zero_sr_hdr), 0);
+    std::memcpy(zero_sr_buf.data(), &zero_sr_hdr, sizeof(zero_sr_hdr));
+    MemoryReader zero_sr_reader(zero_sr_buf.data(), zero_sr_buf.size());
+    TempoGenerator gen3;
+    bool ok3 = gen3.init(&zero_sr_reader, &att_writer);
+    assert(!ok3);
+    bool err3 = gen3.has_error();
+    assert(err3);
+
+    // Zero lod_count
+    AsvHeader zero_lod_hdr{};
+    zero_lod_hdr.magic = ASV_MAGIC;
+    zero_lod_hdr.version = ASV_VERSION;
+    zero_lod_hdr.sample_rate = 44100;
+    zero_lod_hdr.lod_count = 0;
+    std::vector<uint8_t> zero_lod_buf(sizeof(zero_lod_hdr), 0);
+    std::memcpy(zero_lod_buf.data(), &zero_lod_hdr, sizeof(zero_lod_hdr));
+    MemoryReader zero_lod_reader(zero_lod_buf.data(), zero_lod_buf.size());
+    TempoGenerator gen4;
+    bool ok4 = gen4.init(&zero_lod_reader, &att_writer);
+    assert(!ok4);
+    bool err4 = gen4.has_error();
+    assert(err4);
+}
+
+void test_tempo_generator_step_zero_and_reuse() {
+    AsvHeader hdr{};
+    hdr.magic = ASV_MAGIC;
+    hdr.version = ASV_VERSION;
+    hdr.duration_ms = 1000;
+    hdr.sample_rate = 44100;
+    hdr.num_bands = 64;
+    hdr.hop_size = 512;
+    hdr.lod_count = 1;
+    hdr.lods[0].file_offset = 128;
+    hdr.lods[0].frame_count = 100;
+
+    std::vector<uint8_t> asv_buf(128 + 100 * 64, 0);
+    std::memcpy(asv_buf.data(), &hdr, sizeof(hdr));
+
+    MemoryReader reader(asv_buf.data(), asv_buf.size());
+    std::vector<uint8_t> att_buf(4096, 0);
+    MemoryWriter writer(att_buf.data(), att_buf.size());
+
+    TempoGenerator gen;
+    bool ok = gen.init(&reader, &writer);
+    assert(ok);
+
+    // Calling step(0) when frames remain should return true and not complete
+    bool step0_ok = gen.step(0);
+    assert(step0_ok);
+    bool complete_before = gen.is_complete();
+    assert(!complete_before);
+
+    // Process remaining
+    while (gen.step(50)) {}
+    bool complete_after = gen.is_complete();
+    assert(complete_after);
+
+    // Re-initialize and verify clean state reset
+    reader.seek(0);
+    writer.seek(0);
+    bool reinit_ok = gen.init(&reader, &writer);
+    assert(reinit_ok);
+    bool reinit_complete = gen.is_complete();
+    assert(!reinit_complete);
+    bool reinit_err = gen.has_error();
+    assert(!reinit_err);
+    assert(gen.progress() == 0.0f);
 }
 
 int main() {
     test_tempo_generator_synthetic_120bpm();
     test_tempo_generator_invalid_inputs();
+    test_tempo_generator_step_zero_and_reuse();
     std::cout << "test_tempo_generator PASSED\n";
     return 0;
 }
