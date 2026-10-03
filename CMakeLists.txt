@@ -420,6 +420,10 @@ add_executable(test_spectrum_reader tests/test_spectrum_reader.cpp)
 target_link_libraries(test_spectrum_reader PRIVATE audio_codecs_spectrum audio_codecs_preview)
 add_test(NAME SpectrumReaderTest COMMAND test_spectrum_reader)
 
+add_executable(test_spectrum_integration tests/test_spectrum_integration.cpp)
+target_link_libraries(test_spectrum_integration PRIVATE audio_codecs_spectrum audio_codecs_preview)
+add_test(NAME SpectrumIntegrationTest COMMAND test_spectrum_integration)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
