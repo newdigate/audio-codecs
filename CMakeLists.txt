@@ -429,6 +429,16 @@ target_include_directories(test_tempo_types PRIVATE include)
 target_link_libraries(test_tempo_types PRIVATE audio_codecs_preview)
 add_test(NAME TempoTypesTest COMMAND test_tempo_types)
 
+add_library(audio_codecs_tempo STATIC
+    src/tempo/tempo_novelty.cpp
+)
+target_include_directories(audio_codecs_tempo PUBLIC include)
+target_link_libraries(audio_codecs_tempo PUBLIC audio_codecs_spectrum audio_codecs_preview)
+
+add_executable(test_tempo_novelty tests/test_tempo_novelty.cpp)
+target_link_libraries(test_tempo_novelty PRIVATE audio_codecs_tempo)
+add_test(NAME TempoNoveltyTest COMMAND test_tempo_novelty)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
