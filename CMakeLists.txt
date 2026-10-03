@@ -454,6 +454,11 @@ add_executable(test_tempo_reader tests/test_tempo_reader.cpp)
 target_link_libraries(test_tempo_reader PRIVATE audio_codecs_tempo)
 add_test(NAME TempoReaderTest COMMAND test_tempo_reader)
 
+add_executable(test_tempo_integration tests/test_tempo_integration.cpp)
+target_link_libraries(test_tempo_integration PRIVATE audio_codecs_tempo)
+add_test(NAME TempoIntegrationTest COMMAND test_tempo_integration)
+
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
