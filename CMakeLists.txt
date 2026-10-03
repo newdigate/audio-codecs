@@ -424,6 +424,11 @@ add_executable(test_spectrum_integration tests/test_spectrum_integration.cpp)
 target_link_libraries(test_spectrum_integration PRIVATE audio_codecs_spectrum audio_codecs_preview)
 add_test(NAME SpectrumIntegrationTest COMMAND test_spectrum_integration)
 
+add_executable(test_tempo_types tests/test_tempo_types.cpp)
+target_include_directories(test_tempo_types PRIVATE include)
+target_link_libraries(test_tempo_types PRIVATE audio_codecs_preview)
+add_test(NAME TempoTypesTest COMMAND test_tempo_types)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
