@@ -431,6 +431,7 @@ add_test(NAME TempoTypesTest COMMAND test_tempo_types)
 
 add_library(audio_codecs_tempo STATIC
     src/tempo/tempo_novelty.cpp
+    src/tempo/tempo_inducer.cpp
 )
 target_include_directories(audio_codecs_tempo PUBLIC include)
 target_link_libraries(audio_codecs_tempo PUBLIC audio_codecs_spectrum audio_codecs_preview)
@@ -438,6 +439,10 @@ target_link_libraries(audio_codecs_tempo PUBLIC audio_codecs_spectrum audio_code
 add_executable(test_tempo_novelty tests/test_tempo_novelty.cpp)
 target_link_libraries(test_tempo_novelty PRIVATE audio_codecs_tempo)
 add_test(NAME TempoNoveltyTest COMMAND test_tempo_novelty)
+
+add_executable(test_tempo_inducer tests/test_tempo_inducer.cpp)
+target_link_libraries(test_tempo_inducer PRIVATE audio_codecs_tempo)
+add_test(NAME TempoInducerTest COMMAND test_tempo_inducer)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
