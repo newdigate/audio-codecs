@@ -388,6 +388,10 @@ add_executable(test_preview_integration tests/test_preview_integration.cpp)
 target_link_libraries(test_preview_integration PRIVATE audio_codecs_preview audio_codecs_wav)
 add_test(NAME PreviewIntegrationTest COMMAND test_preview_integration)
 
+add_executable(test_spectrum_types tests/test_spectrum_types.cpp)
+target_include_directories(test_spectrum_types PRIVATE include)
+add_test(NAME SpectrumTypesTest COMMAND test_spectrum_types)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
