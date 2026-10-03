@@ -396,6 +396,7 @@ add_library(audio_codecs_spectrum
     src/spectrum/desktop_fft.cpp
     src/spectrum/spectrum_filterbank.cpp
     src/spectrum/spectrum_generator.cpp
+    src/spectrum/spectrum_reader.cpp
 )
 target_include_directories(audio_codecs_spectrum PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -414,6 +415,10 @@ add_test(NAME SpectrumFilterbankTest COMMAND test_spectrum_filterbank)
 add_executable(test_spectrum_generator tests/test_spectrum_generator.cpp)
 target_link_libraries(test_spectrum_generator PRIVATE audio_codecs_spectrum audio_codecs_preview)
 add_test(NAME SpectrumGeneratorTest COMMAND test_spectrum_generator)
+
+add_executable(test_spectrum_reader tests/test_spectrum_reader.cpp)
+target_link_libraries(test_spectrum_reader PRIVATE audio_codecs_spectrum audio_codecs_preview)
+add_test(NAME SpectrumReaderTest COMMAND test_spectrum_reader)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
