@@ -11,6 +11,7 @@ TempoInducer::TempoInducer() {
 
 void TempoInducer::reset(float frame_rate) {
     std::memset(buffer_, 0, sizeof(buffer_));
+    std::memset(temp_unrolled_, 0, sizeof(temp_unrolled_));
     head_ = 0;
     count_ = 0;
     frame_rate_ = frame_rate > 0.0f ? frame_rate : 86.133f;
@@ -38,10 +39,9 @@ TempoEstimate TempoInducer::estimate_tempo() const {
     }
 
     // Unroll circular buffer into contiguous temporal array
-    float temp[K_WINDOW_SIZE];
     for (size_t i = 0; i < K_WINDOW_SIZE; ++i) {
         size_t idx = (head_ + i) % K_WINDOW_SIZE;
-        temp[i] = buffer_[idx];
+        temp_unrolled_[i] = buffer_[idx];
     }
 
     float comb_scores[K_MAX_LAG + 1];
@@ -56,14 +56,14 @@ TempoEstimate TempoInducer::estimate_tempo() const {
         // Autocorrelation at tau
         float r1 = 0.0f;
         for (int k = 0; k < static_cast<int>(K_WINDOW_SIZE) - tau; ++k) {
-            r1 += temp[k] * temp[k + tau];
+            r1 += temp_unrolled_[k] * temp_unrolled_[k + tau];
         }
 
         // Comb harmonic at 2*tau
         float r2 = 0.0f;
         if (2 * tau < static_cast<int>(K_WINDOW_SIZE)) {
             for (int k = 0; k < static_cast<int>(K_WINDOW_SIZE) - 2 * tau; ++k) {
-                r2 += temp[k] * temp[k + 2 * tau];
+                r2 += temp_unrolled_[k] * temp_unrolled_[k + 2 * tau];
             }
         }
 
@@ -71,7 +71,7 @@ TempoEstimate TempoInducer::estimate_tempo() const {
         float r4 = 0.0f;
         if (4 * tau < static_cast<int>(K_WINDOW_SIZE)) {
             for (int k = 0; k < static_cast<int>(K_WINDOW_SIZE) - 4 * tau; ++k) {
-                r4 += temp[k] * temp[k + 4 * tau];
+                r4 += temp_unrolled_[k] * temp_unrolled_[k + 4 * tau];
             }
         }
 

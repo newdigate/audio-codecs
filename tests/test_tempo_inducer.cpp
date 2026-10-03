@@ -69,7 +69,8 @@ void test_reset_clears_state() {
         inducer.feed_sample(100.0f);
     }
     TempoEstimate est_before = inducer.estimate_tempo();
-    (void)est_before;
+    assert(est_before.bpm > 0.0f);
+    assert(est_before.confidence > 0);
 
     inducer.reset(86.133f);
     TempoEstimate est_after = inducer.estimate_tempo();

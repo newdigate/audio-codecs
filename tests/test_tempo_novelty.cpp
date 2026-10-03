@@ -1,7 +1,6 @@
 #include <audio_codecs/tempo/tempo_novelty.h>
 #include <cassert>
 #include <iostream>
-#include <vector>
 
 using namespace audio_codecs::tempo;
 
@@ -14,6 +13,7 @@ void test_subband_flux_separation() {
     assert(s0.novelty == 0.0f);
     assert(s0.bass_flux == 0.0f);
     assert(s0.snare_flux == 0.0f);
+    assert(s0.high_flux == 0.0f);
 
     // Kick transient (energy burst in bands 2..5)
     uint8_t frame1[64] = {0};
@@ -21,6 +21,7 @@ void test_subband_flux_separation() {
     NoveltySample s1 = extractor.process_frame(frame1);
     assert(s1.bass_flux > 500.0f);
     assert(s1.snare_flux == 0.0f);
+    assert(s1.high_flux == 0.0f);
     assert(s1.novelty > 0.0f);
 
     // Snare transient (energy burst in bands 20..30)
@@ -28,6 +29,17 @@ void test_subband_flux_separation() {
     for (int b = 20; b <= 30; ++b) frame2[b] = 180;
     NoveltySample s2 = extractor.process_frame(frame2);
     assert(s2.snare_flux > 500.0f);
+    assert(s2.bass_flux == 0.0f);
+    assert(s2.high_flux == 0.0f);
+
+    // Hi-hat / cymbal transient (energy burst in bands 43..63)
+    uint8_t frame3[64] = {0};
+    for (int b = 43; b <= 63; ++b) frame3[b] = 160;
+    NoveltySample s3 = extractor.process_frame(frame3);
+    assert(s3.high_flux > 500.0f);
+    assert(s3.bass_flux == 0.0f);
+    assert(s3.snare_flux == 0.0f);
+    assert(s3.raw_novelty > 0.0f);
 }
 
 void test_adaptive_threshold_suppresses_dc() {

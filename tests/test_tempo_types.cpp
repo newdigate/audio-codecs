@@ -56,6 +56,7 @@ void test_header_defaults() {
     MemoryReader reader(buffer, sizeof(buffer));
     size_t read_bytes = reader.read(reinterpret_cast<uint8_t*>(&read_hdr), sizeof(read_hdr));
     assert(read_bytes == 128);
+    assert(std::memcmp(&hdr, &read_hdr, sizeof(AttHeader)) == 0);
 
     int cmp = std::memcmp(read_hdr.magic, "ATT1", 4);
     assert(cmp == 0);

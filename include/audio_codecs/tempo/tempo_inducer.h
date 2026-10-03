@@ -25,6 +25,7 @@ public:
 
 private:
     float buffer_[K_WINDOW_SIZE];
+    mutable float temp_unrolled_[K_WINDOW_SIZE];
     size_t head_;
     size_t count_;
     float frame_rate_;

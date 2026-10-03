@@ -34,6 +34,12 @@ bool TempoReader::init(preview::SeekableReader* att_reader) {
         return false;
     }
 
+    if (header_.tempo_point_size != sizeof(AttTempoPoint) ||
+        header_.beat_marker_size != sizeof(AttBeatMarker)) {
+        std::memset(&header_, 0, sizeof(header_));
+        return false;
+    }
+
     // Limit tempo curve points to a reasonable upper bound to protect against corrupt headers
     if (header_.tempo_curve_count > 65536) {
         std::memset(&header_, 0, sizeof(header_));
@@ -106,7 +112,8 @@ bool TempoReader::get_nearest_beat(uint32_t time_ms, AttBeatMarker* out_beat) co
 
     int low = 0;
     int high = static_cast<int>(header_.total_beats) - 1;
-    int best_idx = 0;
+    AttBeatMarker best_bm{};
+    bool found_any = false;
     uint32_t min_diff = 0xFFFFFFFF;
 
     while (low <= high) {
@@ -117,7 +124,8 @@ bool TempoReader::get_nearest_beat(uint32_t time_ms, AttBeatMarker* out_beat) co
         uint32_t diff = (bm.time_ms > time_ms) ? (bm.time_ms - time_ms) : (time_ms - bm.time_ms);
         if (diff < min_diff) {
             min_diff = diff;
-            best_idx = mid;
+            best_bm = bm;
+            found_any = true;
         }
 
         if (bm.time_ms == time_ms) {
@@ -131,7 +139,8 @@ bool TempoReader::get_nearest_beat(uint32_t time_ms, AttBeatMarker* out_beat) co
         }
     }
 
-    return get_beat_at_index(static_cast<uint32_t>(best_idx), out_beat);
+    *out_beat = best_bm;
+    return found_any;
 }
 
 float TempoReader::time_to_beat(uint32_t time_ms) const {

@@ -161,6 +161,28 @@ void test_tempo_reader_invalid_inputs() {
     ok = reader.init(&bad_ver_reader);
     assert(!ok);
 
+    // Bad tempo_point_size
+    bad_hdr = {};
+    std::memcpy(bad_hdr.magic, ATT_MAGIC, 4);
+    bad_hdr.version = ATT_VERSION;
+    bad_hdr.header_size = 128;
+    bad_hdr.tempo_point_size = 4; // should be sizeof(AttTempoPoint) = 8
+    bad_hdr.beat_marker_size = sizeof(AttBeatMarker);
+    MemoryReader bad_tps_reader(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
+    ok = reader.init(&bad_tps_reader);
+    assert(!ok);
+
+    // Bad beat_marker_size
+    bad_hdr = {};
+    std::memcpy(bad_hdr.magic, ATT_MAGIC, 4);
+    bad_hdr.version = ATT_VERSION;
+    bad_hdr.header_size = 128;
+    bad_hdr.tempo_point_size = sizeof(AttTempoPoint);
+    bad_hdr.beat_marker_size = 4; // should be sizeof(AttBeatMarker) = 16
+    MemoryReader bad_bms_reader(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
+    ok = reader.init(&bad_bms_reader);
+    assert(!ok);
+
     // Query on uninitialized reader
     TempoReader uninit;
     AttBeatMarker bm{};
