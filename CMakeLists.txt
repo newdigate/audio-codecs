@@ -392,6 +392,19 @@ add_executable(test_spectrum_types tests/test_spectrum_types.cpp)
 target_include_directories(test_spectrum_types PRIVATE include)
 add_test(NAME SpectrumTypesTest COMMAND test_spectrum_types)
 
+add_library(audio_codecs_spectrum
+    src/spectrum/desktop_fft.cpp
+)
+target_include_directories(audio_codecs_spectrum PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_compile_features(audio_codecs_spectrum PUBLIC cxx_std_17)
+
+add_executable(test_spectrum_fft tests/test_spectrum_fft.cpp)
+target_link_libraries(test_spectrum_fft PRIVATE audio_codecs_spectrum)
+add_test(NAME SpectrumFftTest COMMAND test_spectrum_fft)
+
 # Fetch test-files repository for integration testing
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
