@@ -9,9 +9,22 @@ SpectrumFilterbank::SpectrumFilterbank() {
 }
 
 bool SpectrumFilterbank::init(uint32_t sample_rate, uint8_t num_bands, uint16_t min_freq, uint16_t max_freq) {
-    if (sample_rate == 0 || min_freq == 0 || max_freq <= min_freq || num_bands == 0) {
+    initialized_ = false;
+
+    if (sample_rate == 0 || min_freq == 0 || num_bands == 0) {
         return false;
     }
+
+    // Clamp max_freq to Nyquist (sample_rate / 2) to prevent buffer over-read of in_magnitudes_512
+    uint16_t nyquist = static_cast<uint16_t>(sample_rate / 2);
+    if (max_freq > nyquist) {
+        max_freq = nyquist;
+    }
+
+    if (max_freq <= min_freq) {
+        return false;
+    }
+
     if (num_bands > 64) num_bands = 64;
     num_bands_ = num_bands;
 
@@ -29,8 +42,9 @@ bool SpectrumFilterbank::init(uint32_t sample_rate, uint8_t num_bands, uint16_t 
         float f_low = f_min * std::pow(f_max / f_min, static_cast<float>(b) / static_cast<float>(num_bands_));
         float f_high = f_min * std::pow(f_max / f_min, static_cast<float>(b + 1) / static_cast<float>(num_bands_));
 
-        uint16_t k_start = static_cast<uint16_t>(std::max(1.0f, std::floor(f_low / bin_width)));
-        uint16_t k_end = static_cast<uint16_t>(std::min(511.0f, std::ceil(f_high / bin_width)));
+        // Strictly clamp bin indices within [1, 511] to avoid out-of-bounds access
+        uint16_t k_start = std::clamp(static_cast<uint16_t>(f_low / bin_width), uint16_t{1}, uint16_t{511});
+        uint16_t k_end = std::clamp(static_cast<uint16_t>(std::ceil(f_high / bin_width)), uint16_t{1}, uint16_t{511});
 
         if (k_end < k_start) k_end = k_start;
 
@@ -52,6 +66,12 @@ void SpectrumFilterbank::apply_hann_window(const int16_t* in_pcm, int16_t* out_w
 
 void SpectrumFilterbank::compute_bands(const float* in_magnitudes_512, uint8_t* out_bands) const {
     if (!in_magnitudes_512 || !out_bands) return;
+    if (!initialized_) return;
+
+    // Full-scale sine peak magnitude for 1024-point real FFT on 16-bit PCM is 32768.0f * 512.0f
+    constexpr float kRefMag = 32768.0f * 512.0f;
+    constexpr float kRefEnergy = kRefMag * kRefMag;
+
     for (size_t b = 0; b < num_bands_; ++b) {
         uint16_t start = band_bin_start_[b];
         uint16_t end = band_bin_end_[b];
@@ -62,16 +82,13 @@ void SpectrumFilterbank::compute_bands(const float* in_magnitudes_512, uint8_t* 
             sum_sq += mag * mag;
         }
 
-        // dB calculation with -96 dB floor
-        float energy = sum_sq + 1e-10f;
-        float db = 10.0f * std::log10(energy);
+        // dB calculation with -96 dB floor normalized against full-scale FFT reference
+        float norm_energy = (sum_sq / kRefEnergy) + 1e-10f;
+        float db = 10.0f * std::log10(norm_energy);
 
-        // Normalize dB from [-96, 0] to [0, 255] (scale reference ~ 90 dB max)
+        // Normalize dB from [-96, 0] to [0, 255]
         float scaled = (db + 96.0f) * (255.0f / 96.0f);
-        if (scaled < 0.0f) scaled = 0.0f;
-        if (scaled > 255.0f) scaled = 255.0f;
-
-        out_bands[b] = static_cast<uint8_t>(scaled);
+        out_bands[b] = static_cast<uint8_t>(std::clamp(scaled, 0.0f, 255.0f));
     }
 }
 
