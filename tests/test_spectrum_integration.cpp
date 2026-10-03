@@ -10,7 +10,8 @@ using namespace audio_codecs::preview;
 
 int main() {
     DesktopRealFftBackend fft;
-    assert(fft.init());
+    bool ok = fft.init();
+    assert(ok);
 
     // Generate 4 seconds of audio:
     // First 2 seconds: 440 Hz tone (low-mid band)
@@ -32,12 +33,15 @@ int main() {
     MemoryWriter asv_writer(asv_storage.data(), asv_storage.size());
 
     SpectrumGenerator gen;
-    assert(gen.init(pcm_reader, asv_writer, fft, sample_rate, 2, true, 64));
-    assert(gen.generate_all());
+    ok = gen.init(pcm_reader, asv_writer, fft, sample_rate, 2, true, 64);
+    assert(ok);
+    ok = gen.generate_all();
+    assert(ok);
 
     MemoryReader asv_reader(asv_storage.data(), asv_writer.size());
     SpectrumReader reader;
-    assert(reader.init(asv_reader));
+    ok = reader.init(asv_reader);
+    assert(ok);
     assert(reader.duration_ms() == 4000);
 
     // Query first half (0 to 2000 ms): peak should be around band 20-35 (440 Hz)

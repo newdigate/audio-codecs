@@ -16,9 +16,9 @@ bool SpectrumFilterbank::init(uint32_t sample_rate, uint8_t num_bands, uint16_t 
     }
 
     // Clamp max_freq to Nyquist (sample_rate / 2) to prevent buffer over-read of in_magnitudes_512
-    uint16_t nyquist = static_cast<uint16_t>(sample_rate / 2);
-    if (max_freq > nyquist) {
-        max_freq = nyquist;
+    uint32_t nyquist = sample_rate / 2;
+    if (static_cast<uint32_t>(max_freq) > nyquist) {
+        max_freq = static_cast<uint16_t>(nyquist);
     }
 
     if (max_freq <= min_freq) {

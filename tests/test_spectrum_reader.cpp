@@ -14,7 +14,8 @@ using namespace audio_codecs::preview;
 
 void test_basic_reading() {
     DesktopRealFftBackend fft;
-    assert(fft.init());
+    bool ok = fft.init();
+    assert(ok);
 
     // Generate 3 seconds of 44.1 kHz sine wave at 1000 Hz
     uint32_t sample_rate = 44100;
@@ -30,12 +31,15 @@ void test_basic_reading() {
     MemoryWriter asv_writer(asv_storage.data(), asv_storage.size());
 
     SpectrumGenerator gen;
-    assert(gen.init(pcm_reader, asv_writer, fft, sample_rate, 1, true, 64));
-    assert(gen.generate_all());
+    ok = gen.init(pcm_reader, asv_writer, fft, sample_rate, 1, true, 64);
+    assert(ok);
+    ok = gen.generate_all();
+    assert(ok);
 
     MemoryReader asv_reader(asv_storage.data(), asv_writer.size());
     SpectrumReader reader;
-    assert(reader.init(asv_reader));
+    ok = reader.init(asv_reader);
+    assert(ok);
 
     // Getters validation
     assert(reader.duration_ms() == 3000);
@@ -107,7 +111,8 @@ void test_lod_selection() {
 
     MemoryReader mem(buf.data(), buf.size());
     SpectrumReader reader;
-    assert(reader.init(mem));
+    bool ok = reader.init(mem);
+    assert(ok);
 
     // Threshold is 90ms
     // 89ms per frame -> LOD 0
@@ -131,7 +136,8 @@ void test_lod_selection() {
     std::memcpy(buf.data(), &hdr, sizeof(hdr));
     mem.seek(0);
     SpectrumReader reader_single_lod;
-    assert(reader_single_lod.init(mem));
+    ok = reader_single_lod.init(mem);
+    assert(ok);
     assert(reader_single_lod.select_lod(5000, 10) == 0);
 }
 
@@ -150,43 +156,51 @@ void test_error_and_boundaries() {
     bad_hdr.num_bands = 64;
     bad_hdr.lod_count = 2;
     MemoryReader bad_mem1(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem1));
+    bool ok = reader.init(bad_mem1);
+    assert(!ok);
 
     // Corrupted version
     bad_hdr.magic = ASV_MAGIC;
     bad_hdr.version = 99;
     MemoryReader bad_mem2(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem2));
+    ok = reader.init(bad_mem2);
+    assert(!ok);
 
     // Invalid channels
     bad_hdr.version = ASV_VERSION;
     bad_hdr.channels = 0;
     MemoryReader bad_mem3(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem3));
+    ok = reader.init(bad_mem3);
+    assert(!ok);
 
     bad_hdr.channels = 3;
     MemoryReader bad_mem4(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem4));
+    ok = reader.init(bad_mem4);
+    assert(!ok);
 
     // Invalid num_bands
     bad_hdr.channels = 1;
     bad_hdr.num_bands = 0;
     MemoryReader bad_mem5(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem5));
+    ok = reader.init(bad_mem5);
+    assert(!ok);
 
     bad_hdr.num_bands = 65;
     MemoryReader bad_mem6(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem6));
+    ok = reader.init(bad_mem6);
+    assert(!ok);
 
     // Invalid lod_count
     bad_hdr.num_bands = 64;
     bad_hdr.lod_count = 0;
     MemoryReader bad_mem7(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem7));
+    ok = reader.init(bad_mem7);
+    assert(!ok);
 
     bad_hdr.lod_count = 5;
     MemoryReader bad_mem8(reinterpret_cast<const uint8_t*>(&bad_hdr), sizeof(bad_hdr));
-    assert(!reader.init(bad_mem8));
+    ok = reader.init(bad_mem8);
+    assert(!ok);
 
     // Valid header for boundary checks
     AsvHeader valid_hdr{};
@@ -204,7 +218,8 @@ void test_error_and_boundaries() {
     std::vector<uint8_t> valid_buf(sizeof(valid_hdr) + 100 * 64 + 10 * 64, 42);
     std::memcpy(valid_buf.data(), &valid_hdr, sizeof(valid_hdr));
     MemoryReader valid_mem(valid_buf.data(), valid_buf.size());
-    assert(reader.init(valid_mem));
+    ok = reader.init(valid_mem);
+    assert(ok);
 
     // Null output buffer
     assert(reader.read_spectrum(0, 100, nullptr, 5) == 0);
@@ -222,6 +237,7 @@ void test_error_and_boundaries() {
     // Start + duration > track duration should clamp duration and still read
     std::vector<uint8_t> clamped_out(5 * 64);
     assert(reader.read_spectrum(800, 500, clamped_out.data(), 5) == 5);
+    assert(reader.read_spectrum(800, UINT32_MAX, clamped_out.data(), 5) == 5);
 }
 
 void test_sector_caching_and_straddling() {
@@ -256,7 +272,8 @@ void test_sector_caching_and_straddling() {
 
     MemoryReader mem(storage.data(), storage.size());
     SpectrumReader reader;
-    assert(reader.init(mem));
+    bool ok = reader.init(mem);
+    assert(ok);
 
     // Read frame 0 (which straddles sector 0 and sector 1: bytes [500..512) in sector 0, [512..548) in sector 1)
     std::vector<uint8_t> read_buf(48);
@@ -313,7 +330,8 @@ void test_peak_hold_decimation() {
 
     MemoryReader mem(storage.data(), storage.size());
     SpectrumReader reader;
-    assert(reader.init(mem));
+    bool ok = reader.init(mem);
+    assert(ok);
 
     // Query 0 to 300ms in 1 column -> should span frames 0, 1, 2
     std::vector<uint8_t> out(4);

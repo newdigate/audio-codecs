@@ -12,7 +12,8 @@ using namespace audio_codecs::preview;
 
 void test_basic_generation() {
     DesktopRealFftBackend fft;
-    assert(fft.init());
+    bool ok = fft.init();
+    assert(ok);
 
     // Generate 2 seconds of 44.1 kHz stereo audio with 440 Hz sine wave
     uint32_t sample_rate = 44100;
@@ -30,8 +31,10 @@ void test_basic_generation() {
     MemoryWriter asv_writer(asv_storage.data(), asv_storage.size());
 
     SpectrumGenerator gen;
-    assert(gen.init(pcm_reader, asv_writer, fft, sample_rate, 2, true, 64));
-    assert(gen.generate_all());
+    ok = gen.init(pcm_reader, asv_writer, fft, sample_rate, 2, true, 64);
+    assert(ok);
+    ok = gen.generate_all();
+    assert(ok);
 
     assert(gen.status() == GeneratorStatus::Complete);
     assert(gen.progress() >= 1.0f);
@@ -85,7 +88,8 @@ void test_basic_generation() {
 
 void test_cooperative_stepping() {
     DesktopRealFftBackend fft;
-    assert(fft.init());
+    bool ok = fft.init();
+    assert(ok);
 
     uint32_t sample_rate = 44100;
     size_t num_frames = sample_rate; // 1 second
@@ -97,7 +101,8 @@ void test_cooperative_stepping() {
 
     SpectrumGenerator gen;
     assert(gen.progress() == 0.0f);
-    assert(gen.init(pcm_reader, asv_writer, fft, sample_rate, 1, false, 32));
+    ok = gen.init(pcm_reader, asv_writer, fft, sample_rate, 1, false, 32);
+    assert(ok);
 
     bool saw_lod0 = false;
     bool saw_lod1 = false;
@@ -138,7 +143,8 @@ public:
 
 void test_error_conditions() {
     DesktopRealFftBackend fft;
-    assert(fft.init());
+    bool ok = fft.init();
+    assert(ok);
 
     std::vector<int16_t> pcm(1024, 0);
     MemoryReader pcm_reader(reinterpret_cast<const uint8_t*>(pcm.data()), pcm.size() * sizeof(int16_t));
@@ -148,23 +154,30 @@ void test_error_conditions() {
     SpectrumGenerator gen;
 
     // generate_all before init must fail
-    assert(!gen.generate_all());
+    ok = gen.generate_all();
+    assert(!ok);
 
     // Invalid channel counts must fail init
-    assert(!gen.init(pcm_reader, asv_writer, fft, 44100, 0));
-    assert(!gen.init(pcm_reader, asv_writer, fft, 44100, 3));
+    ok = gen.init(pcm_reader, asv_writer, fft, 44100, 0);
+    assert(!ok);
+    ok = gen.init(pcm_reader, asv_writer, fft, 44100, 3);
+    assert(!ok);
 
     // Zero sample rate must fail init
-    assert(!gen.init(pcm_reader, asv_writer, fft, 0, 1));
+    ok = gen.init(pcm_reader, asv_writer, fft, 0, 1);
+    assert(!ok);
 
     // Stereo without downmix to mono must fail init
-    assert(!gen.init(pcm_reader, asv_writer, fft, 44100, 2, false));
+    ok = gen.init(pcm_reader, asv_writer, fft, 44100, 2, false);
+    assert(!ok);
     assert(gen.status() == GeneratorStatus::ErrorSource);
 
     // Write-only destination: init succeeds, LOD 0 finishes, but LOD 1 fails with ErrorDest
     WriteOnlyWriter write_only;
-    assert(gen.init(pcm_reader, write_only, fft, 44100, 1));
-    assert(!gen.generate_all());
+    ok = gen.init(pcm_reader, write_only, fft, 44100, 1);
+    assert(ok);
+    ok = gen.generate_all();
+    assert(!ok);
     assert(gen.status() == GeneratorStatus::ErrorDest);
 }
 

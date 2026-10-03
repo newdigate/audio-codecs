@@ -1,5 +1,6 @@
 #include "audio_codecs/spectrum/desktop_fft.h"
 #include <cmath>
+#include <cassert>
 
 namespace audio_codecs::spectrum {
 
@@ -34,6 +35,7 @@ bool DesktopRealFftBackend::init() {
 }
 
 void DesktopRealFftBackend::forward_1024(const int16_t* in_pcm, float* out_magnitudes_512) {
+    assert(in_pcm != nullptr && out_magnitudes_512 != nullptr);
     if (!initialized_) init();
 
     float real[1024];

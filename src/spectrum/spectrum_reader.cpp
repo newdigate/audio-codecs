@@ -120,7 +120,7 @@ size_t SpectrumReader::read_spectrum(uint32_t start_ms,
         return 0;
     }
 
-    if (start_ms + duration_ms > header_.duration_ms) {
+    if (duration_ms > header_.duration_ms - start_ms) {
         duration_ms = header_.duration_ms - start_ms;
     }
 

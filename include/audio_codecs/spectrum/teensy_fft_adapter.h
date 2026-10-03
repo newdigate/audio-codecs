@@ -1,6 +1,5 @@
 #pragma once
 #include "fft_backend.h"
-#include <cmath>
 
 namespace audio_codecs::spectrum {
 

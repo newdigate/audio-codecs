@@ -93,6 +93,15 @@ int main() {
         assert(overnyquist_fb.band_start_bin(b) <= overnyquist_fb.band_end_bin(b));
     }
 
+    SpectrumFilterbank highres_fb;
+    assert(highres_fb.init(192000, 64, 20, 20000)); // Nyquist = 96000 Hz, does not overflow uint16
+    assert(highres_fb.is_initialized());
+    for (size_t b = 0; b < highres_fb.num_bands(); ++b) {
+        assert(highres_fb.band_start_bin(b) >= 1);
+        assert(highres_fb.band_end_bin(b) <= 511);
+        assert(highres_fb.band_start_bin(b) <= highres_fb.band_end_bin(b));
+    }
+
     // 5. Invalid parameters rejected and initialized_ set to false
     SpectrumFilterbank invalid_fb;
     assert(!invalid_fb.init(0, 64, 20, 20000));
