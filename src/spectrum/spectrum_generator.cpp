@@ -33,6 +33,11 @@ bool SpectrumGenerator::init(preview::SeekableReader& pcm_source,
         return false;
     }
 
+    if (!downmix_to_mono && source_channels > 1) {
+        status_ = GeneratorStatus::ErrorSource;
+        return false;
+    }
+
     source_ = &pcm_source;
     dest_ = &spectrum_dest;
     backend_ = &fft_backend;
@@ -178,10 +183,7 @@ GeneratorStatus SpectrumGenerator::step(size_t frame_budget) {
         hdr.version = ASV_VERSION;
         hdr.flags = ASV_FLAG_HAS_LODS;
         hdr.sample_rate = sample_rate_;
-        hdr.channels = (downmix_to_mono_ || source_channels_ == 1) ? 1 : 2;
-        if (hdr.channels == 2) {
-            hdr.flags |= ASV_FLAG_STEREO;
-        }
+        hdr.channels = 1;
         hdr.num_bands = num_bands_;
         hdr.fft_size = DEFAULT_FFT_SIZE;
         hdr.hop_size = DEFAULT_HOP_SIZE;
@@ -237,8 +239,8 @@ float SpectrumGenerator::progress() const {
     if (status_ == GeneratorStatus::ProcessingLOD1) {
         uint32_t total_groups = (lod0_frame_count_ + 15) / 16;
         if (total_groups == 0) return 0.8f;
-        float p = 0.8f + 0.2f * (static_cast<float>(lod1_current_group_) / static_cast<float>(total_groups));
-        return std::clamp(p, 0.8f, 1.0f);
+        float p = 0.8f + 0.18f * (static_cast<float>(lod1_current_group_) / static_cast<float>(total_groups));
+        return std::clamp(p, 0.8f, 0.98f);
     }
     if (status_ == GeneratorStatus::Finalizing) return 0.99f;
     return 0.0f;

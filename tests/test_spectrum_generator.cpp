@@ -157,6 +157,10 @@ void test_error_conditions() {
     // Zero sample rate must fail init
     assert(!gen.init(pcm_reader, asv_writer, fft, 0, 1));
 
+    // Stereo without downmix to mono must fail init
+    assert(!gen.init(pcm_reader, asv_writer, fft, 44100, 2, false));
+    assert(gen.status() == GeneratorStatus::ErrorSource);
+
     // Write-only destination: init succeeds, LOD 0 finishes, but LOD 1 fails with ErrorDest
     WriteOnlyWriter write_only;
     assert(gen.init(pcm_reader, write_only, fft, 44100, 1));
