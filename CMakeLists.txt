@@ -433,6 +433,7 @@ add_library(audio_codecs_tempo STATIC
     src/tempo/tempo_novelty.cpp
     src/tempo/tempo_inducer.cpp
     src/tempo/tempo_generator.cpp
+    src/tempo/tempo_reader.cpp
 )
 target_include_directories(audio_codecs_tempo PUBLIC include)
 target_link_libraries(audio_codecs_tempo PUBLIC audio_codecs_spectrum audio_codecs_preview)
@@ -448,6 +449,10 @@ add_test(NAME TempoInducerTest COMMAND test_tempo_inducer)
 add_executable(test_tempo_generator tests/test_tempo_generator.cpp)
 target_link_libraries(test_tempo_generator PRIVATE audio_codecs_tempo)
 add_test(NAME TempoGeneratorTest COMMAND test_tempo_generator)
+
+add_executable(test_tempo_reader tests/test_tempo_reader.cpp)
+target_link_libraries(test_tempo_reader PRIVATE audio_codecs_tempo)
+add_test(NAME TempoReaderTest COMMAND test_tempo_reader)
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
