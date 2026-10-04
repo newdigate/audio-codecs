@@ -462,6 +462,16 @@ add_executable(test_slice_types tests/test_slice_types.cpp)
 target_include_directories(test_slice_types PRIVATE include)
 add_test(NAME SliceTypesTest COMMAND test_slice_types)
 
+add_library(audio_codecs_slice STATIC
+    src/slice/slice_detector.cpp
+)
+target_include_directories(audio_codecs_slice PUBLIC include)
+
+add_executable(test_slice_detector tests/test_slice_detector.cpp)
+target_link_libraries(test_slice_detector PRIVATE audio_codecs_slice)
+add_test(NAME SliceDetectorTest COMMAND test_slice_detector)
+
+
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
