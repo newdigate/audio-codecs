@@ -491,6 +491,10 @@ add_executable(test_slice_playback tests/test_slice_playback.cpp)
 target_link_libraries(test_slice_playback PRIVATE audio_codecs_slice)
 add_test(NAME SlicePlaybackTest COMMAND test_slice_playback)
 
+add_executable(test_slice_integration tests/test_slice_integration.cpp)
+target_link_libraries(test_slice_integration PRIVATE audio_codecs_slice)
+add_test(NAME SliceIntegrationTest COMMAND test_slice_integration)
+
 
 
 

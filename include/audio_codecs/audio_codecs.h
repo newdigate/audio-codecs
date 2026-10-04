@@ -15,3 +15,4 @@
 #include "audio_codecs/preview.h"
 #include "audio_codecs/spectrum.h"
 #include "audio_codecs/tempo.h"
+#include <audio_codecs/slice/slice.h>
