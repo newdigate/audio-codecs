@@ -140,10 +140,18 @@ void test_midi_type0_export() {
 
     // Error handling checks
     size_t dummy_written = 0;
-    assert(!SliceMidiWriter::write_type0_midi(hdr, nullptr, 2, midi_buf, sizeof(midi_buf), &dummy_written));
-    assert(!SliceMidiWriter::write_type0_midi(hdr, slices, 0, midi_buf, sizeof(midi_buf), &dummy_written));
-    assert(!SliceMidiWriter::write_type0_midi(hdr, slices, 2, nullptr, sizeof(midi_buf), &dummy_written));
-    assert(!SliceMidiWriter::write_type0_midi(hdr, slices, 2, midi_buf, 64, &dummy_written));
+    bool ok1 = SliceMidiWriter::write_type0_midi(hdr, nullptr, 2, midi_buf, sizeof(midi_buf), &dummy_written);
+    assert(!ok1);
+    (void)ok1;
+    bool ok2 = SliceMidiWriter::write_type0_midi(hdr, slices, 0, midi_buf, sizeof(midi_buf), &dummy_written);
+    assert(!ok2);
+    (void)ok2;
+    bool ok3 = SliceMidiWriter::write_type0_midi(hdr, slices, 2, nullptr, sizeof(midi_buf), &dummy_written);
+    assert(!ok3);
+    (void)ok3;
+    bool ok4 = SliceMidiWriter::write_type0_midi(hdr, slices, 2, midi_buf, 64, &dummy_written);
+    assert(!ok4);
+    (void)ok4;
     (void)dummy_written;
 }
 

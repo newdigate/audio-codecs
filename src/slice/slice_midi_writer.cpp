@@ -90,7 +90,7 @@ bool SliceMidiWriter::write_type0_midi(const AslHeader& header,
 
         // Note On: 0x90 note velocity
         *ptr++ = 0x90;
-        *ptr++ = s.midi_note;
+        *ptr++ = static_cast<uint8_t>(s.midi_note & 0x7F);
         *ptr++ = 100; // Default velocity
 
         // Note duration (approx 16th note = 120 ticks, or up to next slice)
@@ -107,7 +107,7 @@ bool SliceMidiWriter::write_type0_midi(const AslHeader& header,
 
         // Note Off: 0x80 note 0
         *ptr++ = 0x80;
-        *ptr++ = s.midi_note;
+        *ptr++ = static_cast<uint8_t>(s.midi_note & 0x7F);
         *ptr++ = 0x00;
     }
 

@@ -13,6 +13,8 @@ void test_sizes_and_alignments() {
     size_t s_slice = sizeof(AslSlice);
     assert(s_hdr == 128);
     assert(s_slice == 32);
+    (void)s_hdr;
+    (void)s_slice;
 }
 
 void test_header_defaults_and_roundtrip() {
@@ -43,6 +45,7 @@ void test_header_defaults_and_roundtrip() {
 
     int memcmp_hdr = std::memcmp(&hdr, &read_hdr, sizeof(AslHeader));
     assert(memcmp_hdr == 0);
+    (void)memcmp_hdr;
 
     assert(read_hdr.magic == ASL_MAGIC);
     assert(read_hdr.version == ASL_VERSION);
@@ -86,6 +89,7 @@ void test_slice_descriptor_fields() {
 
     int memcmp_slice = std::memcmp(&slice, &read_slice, sizeof(AslSlice));
     assert(memcmp_slice == 0);
+    (void)memcmp_slice;
 
     assert(read_slice.start_sample == 22050);
     assert(read_slice.length_samples == 11025);

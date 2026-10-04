@@ -24,10 +24,7 @@ bool SliceReader::init(const uint8_t* asl_data, size_t asl_size) {
         return false;
     }
 
-    size_t required_size = static_cast<size_t>(hdr->slices_offset) + static_cast<size_t>(hdr->total_slices) * sizeof(AslSlice);
-    if (asl_size < required_size) {
-        return false;
-    }
+    if (asl_size < hdr->slices_offset || (asl_size - hdr->slices_offset) / sizeof(AslSlice) < hdr->total_slices) return false;
 
     header_ = hdr;
     slices_ = reinterpret_cast<const AslSlice*>(asl_data + hdr->slices_offset);
@@ -86,8 +83,9 @@ const AslSlice* SliceReader::find_slice_at_ms(uint32_t ms) const {
     if (header_ == nullptr || header_->sample_rate == 0) {
         return nullptr;
     }
-    uint32_t sample_offset = static_cast<uint32_t>((static_cast<uint64_t>(ms) * header_->sample_rate) / 1000);
-    return find_slice_at_sample(sample_offset);
+    uint64_t sample_offset_64 = (static_cast<uint64_t>(ms) * header_->sample_rate) / 1000;
+    if (sample_offset_64 > UINT32_MAX) return nullptr;
+    return find_slice_at_sample(static_cast<uint32_t>(sample_offset_64));
 }
 
 const AslSlice* SliceReader::find_slice_at_tick(uint32_t tick) const {
