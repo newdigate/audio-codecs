@@ -26,6 +26,18 @@ bool SliceGenerator::init(const GeneratorConfig& config) {
     det_cfg.pre_emphasis_alpha = 0.95f;
     detector_.init(det_cfg);
 
+    return true;
+}
+
+void SliceGenerator::reset() {
+    detector_.reset();
+    std::memset(&header_, 0, sizeof(header_));
+    std::memset(slices_, 0, sizeof(slices_));
+    slice_count_ = 0;
+    raw_transient_count_ = 0;
+    total_samples_ = 0;
+    finalized_ = false;
+
     header_.magic = ASL_MAGIC;
     header_.version = ASL_VERSION;
     header_.header_size = 128;
@@ -38,18 +50,6 @@ bool SliceGenerator::init(const GeneratorConfig& config) {
     header_.ppqn = ASL_PPQN;
     header_.slice_descriptor_size = sizeof(AslSlice);
     header_.slices_offset = 128;
-
-    return true;
-}
-
-void SliceGenerator::reset() {
-    detector_.reset();
-    std::memset(&header_, 0, sizeof(header_));
-    std::memset(slices_, 0, sizeof(slices_));
-    slice_count_ = 0;
-    raw_transient_count_ = 0;
-    total_samples_ = 0;
-    finalized_ = false;
 }
 
 bool SliceGenerator::process_pcm(const int16_t* pcm, uint32_t sample_count) {
@@ -57,14 +57,9 @@ bool SliceGenerator::process_pcm(const int16_t* pcm, uint32_t sample_count) {
         return false;
     }
 
-    uint32_t detected[32];
-    uint32_t count = detector_.process_block(pcm, sample_count, detected, 32);
-
-    for (uint32_t i = 0; i < count; ++i) {
-        if (raw_transient_count_ < MAX_CAPACITY) {
-            raw_transients_[raw_transient_count_++] = detected[i];
-        }
-    }
+    uint32_t remaining = (raw_transient_count_ < MAX_CAPACITY) ? static_cast<uint32_t>(MAX_CAPACITY - raw_transient_count_) : 0u;
+    uint32_t count = detector_.process_block(pcm, sample_count, raw_transients_ + raw_transient_count_, remaining);
+    raw_transient_count_ += static_cast<uint16_t>(count);
 
     total_samples_ += sample_count;
     return true;
@@ -102,7 +97,8 @@ void SliceGenerator::generate_grid_slices() {
         s.bar_index = static_cast<uint8_t>(s.musical_tick / ticks_per_bar);
         s.beat_within_bar = static_cast<uint8_t>((s.musical_tick % ticks_per_bar) / ASL_PPQN);
         s.subdivision = static_cast<uint8_t>((s.musical_tick % ASL_PPQN) / 120);
-        s.decay_ms = static_cast<uint16_t>((s.length_samples * 1000) / config_.sample_rate);
+        uint64_t decay = (static_cast<uint64_t>(s.length_samples) * 1000) / config_.sample_rate;
+        s.decay_ms = static_cast<uint16_t>(decay > 65535 ? 65535 : decay);
         s.tail_mode = ASL_TAIL_STRETCH_DECAY;
     }
 }
@@ -119,7 +115,7 @@ void SliceGenerator::quantize_transients_to_grid() {
     slice_count_ = 0;
 
     // Ensure slice 0 starts at sample 0 if first transient is after 0
-    if (raw_transient_count_ > 0 && raw_transients_[0] > 0) {
+    if (raw_transient_count_ > 0 && raw_transients_[0] > 0 && slice_count_ < config_.max_slices && slice_count_ < MAX_CAPACITY) {
         AslSlice& s0 = slices_[slice_count_++];
         s0.start_sample = 0;
         s0.musical_tick = 0;
@@ -156,7 +152,8 @@ void SliceGenerator::quantize_transients_to_grid() {
         } else {
             slices_[i].length_samples = total_samples_ - slices_[i].start_sample;
         }
-        slices_[i].decay_ms = static_cast<uint16_t>((slices_[i].length_samples * 1000) / config_.sample_rate);
+        uint64_t decay = (static_cast<uint64_t>(slices_[i].length_samples) * 1000) / config_.sample_rate;
+        slices_[i].decay_ms = static_cast<uint16_t>(decay > 65535 ? 65535 : decay);
     }
 }
 
@@ -183,7 +180,8 @@ bool SliceGenerator::finalize() {
             } else {
                 slices_[i].length_samples = total_samples_ - slices_[i].start_sample;
             }
-            slices_[i].decay_ms = static_cast<uint16_t>((slices_[i].length_samples * 1000) / config_.sample_rate);
+            uint64_t decay = (static_cast<uint64_t>(slices_[i].length_samples) * 1000) / config_.sample_rate;
+            slices_[i].decay_ms = static_cast<uint16_t>(decay > 65535 ? 65535 : decay);
         }
     }
 
@@ -235,7 +233,9 @@ bool SliceGenerator::serialize(void* out_buffer, size_t buffer_size, size_t* out
     std::memcpy(ptr, &header_, sizeof(AslHeader));
     ptr += sizeof(AslHeader);
 
-    std::memcpy(ptr, slices_, slice_count_ * sizeof(AslSlice));
+    if (slice_count_ > 0) {
+        std::memcpy(ptr, slices_, slice_count_ * sizeof(AslSlice));
+    }
 
     if (out_bytes_written != nullptr) {
         *out_bytes_written = total_size;

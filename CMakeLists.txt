@@ -476,6 +476,11 @@ add_executable(test_slice_modes tests/test_slice_modes.cpp)
 target_link_libraries(test_slice_modes PRIVATE audio_codecs_slice)
 add_test(NAME SliceModesTest COMMAND test_slice_modes)
 
+add_executable(test_slice_generator tests/test_slice_generator.cpp)
+target_link_libraries(test_slice_generator PRIVATE audio_codecs_slice)
+add_test(NAME SliceGeneratorTest COMMAND test_slice_generator)
+
+
 
 
 # Fetch test-files repository for integration testing
