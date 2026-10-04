@@ -21,8 +21,21 @@ void test_zero_crossing_backward() {
     (void)zc;
 
     // Boundary edge cases
-    assert(SliceDetector::find_zero_crossing_backward(nullptr, 10, 10) == 10);
-    assert(SliceDetector::find_zero_crossing_backward(pcm.data(), 0, 10) == 0);
+    uint32_t zc_null = SliceDetector::find_zero_crossing_backward(nullptr, 10, 10);
+    assert(zc_null == 10);
+    (void)zc_null;
+
+    uint32_t zc_zero = SliceDetector::find_zero_crossing_backward(pcm.data(), 0, 10);
+    assert(zc_zero == 0);
+    (void)zc_zero;
+}
+
+void test_zero_crossing_no_crossing() {
+    // Monotonic positive signal with no zero crossing in search window
+    std::vector<int16_t> pcm(64, 5000);
+    uint32_t zc = SliceDetector::find_zero_crossing_backward(pcm.data(), 30, 10);
+    assert(zc == 30);
+    (void)zc;
 }
 
 void test_detector_impulse_detection() {
@@ -77,11 +90,43 @@ void test_detector_silence_rejection() {
     (void)count;
     (void)detected;
 
-    // Null buffer / zero count edge cases
-    assert(detector.process_block(nullptr, 100, detected, 16) == 0);
-    assert(detector.process_block(silence.data(), 0, detected, 16) == 0);
-    assert(detector.process_block(silence.data(), 100, nullptr, 16) == 0);
-    assert(detector.process_block(silence.data(), 100, detected, 0) == 0);
+    // Null buffer / zero count edge cases without function calls inside assert()
+    uint32_t c1 = detector.process_block(nullptr, 100, detected, 16);
+    assert(c1 == 0);
+    (void)c1;
+
+    uint32_t c2 = detector.process_block(silence.data(), 0, detected, 16);
+    assert(c2 == 0);
+    (void)c2;
+
+    uint32_t c3 = detector.process_block(silence.data(), 100, nullptr, 16);
+    assert(c3 == 0);
+    (void)c3;
+
+    uint32_t c4 = detector.process_block(silence.data(), 100, detected, 0);
+    assert(c4 == 0);
+    (void)c4;
+}
+
+void test_max_indices_capping() {
+    SliceDetector detector;
+    DetectorConfig cfg;
+    cfg.min_slice_samples = 32;
+    bool ok = detector.init(cfg);
+    assert(ok);
+    (void)ok;
+
+    // Buffer with 3 impulses, max_indices = 2
+    std::vector<int16_t> pcm(4410, 0);
+    pcm[320] = 20000;
+    pcm[640] = 20000;
+    pcm[960] = 20000;
+
+    uint32_t detected[2];
+    uint32_t count = detector.process_block(pcm.data(), static_cast<uint32_t>(pcm.size()), detected, 2);
+    assert(count == 2);
+    (void)count;
+    (void)detected;
 }
 
 void test_detector_ram_size() {
@@ -90,8 +135,10 @@ void test_detector_ram_size() {
 
 int main() {
     test_zero_crossing_backward();
+    test_zero_crossing_no_crossing();
     test_detector_impulse_detection();
     test_detector_silence_rejection();
+    test_max_indices_capping();
     test_detector_ram_size();
     std::cout << "test_slice_detector PASSED\n";
     return 0;

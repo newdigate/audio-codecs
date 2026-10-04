@@ -41,7 +41,7 @@ uint32_t SliceDetector::find_zero_crossing_backward(const int16_t* pcm_samples,
             return i;
         }
     }
-    return limit;
+    return peak_index;
 }
 
 uint32_t SliceDetector::process_block(const int16_t* pcm_samples, uint32_t count,
@@ -99,17 +99,26 @@ uint32_t SliceDetector::process_block(const int16_t* pcm_samples, uint32_t count
         if (novelty > threshold && novelty > 2000.0f) {
             uint32_t global_hop_sample = total_samples_processed_ + hop_start;
             if (!has_previous_transient_ || (global_hop_sample - last_transient_sample_ >= config_.min_slice_samples)) {
-                // Find zero crossing backward within [hop_start, hop_start + HOP_SIZE]
-                uint32_t local_zc = find_zero_crossing_backward(pcm_samples, hop_start, 64);
+                // Find local peak sample in this hop
+                uint32_t hop_end = std::min(hop_start + HOP_SIZE, count);
+                uint32_t search_peak = hop_start;
+                int32_t max_val = -1;
+                for (uint32_t i = hop_start; i < hop_end; ++i) {
+                    int32_t a = std::abs(static_cast<int32_t>(pcm_samples[i]));
+                    if (a > max_val) {
+                        max_val = a;
+                        search_peak = i;
+                    }
+                }
+
+                uint32_t local_zc = find_zero_crossing_backward(pcm_samples, search_peak, 64);
                 uint32_t snapped_sample = total_samples_processed_ + local_zc;
 
-                out_transient_indices[detected_count++] = snapped_sample;
+                if (detected_count < max_indices) {
+                    out_transient_indices[detected_count++] = snapped_sample;
+                }
                 last_transient_sample_ = snapped_sample;
                 has_previous_transient_ = true;
-
-                if (detected_count >= max_indices) {
-                    break;
-                }
             }
         }
     }
