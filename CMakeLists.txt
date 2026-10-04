@@ -458,6 +458,10 @@ add_executable(test_tempo_integration tests/test_tempo_integration.cpp)
 target_link_libraries(test_tempo_integration PRIVATE audio_codecs_tempo)
 add_test(NAME TempoIntegrationTest COMMAND test_tempo_integration)
 
+add_executable(test_slice_types tests/test_slice_types.cpp)
+target_include_directories(test_slice_types PRIVATE include)
+add_test(NAME SliceTypesTest COMMAND test_slice_types)
+
 
 # Fetch test-files repository for integration testing
 include(FetchContent)
