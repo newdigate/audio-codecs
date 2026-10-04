@@ -465,6 +465,7 @@ add_test(NAME SliceTypesTest COMMAND test_slice_types)
 add_library(audio_codecs_slice STATIC
     src/slice/slice_detector.cpp
     src/slice/slice_generator.cpp
+    src/slice/slice_reader.cpp
 )
 target_include_directories(audio_codecs_slice PUBLIC include)
 
@@ -479,6 +480,10 @@ add_test(NAME SliceModesTest COMMAND test_slice_modes)
 add_executable(test_slice_generator tests/test_slice_generator.cpp)
 target_link_libraries(test_slice_generator PRIVATE audio_codecs_slice)
 add_test(NAME SliceGeneratorTest COMMAND test_slice_generator)
+
+add_executable(test_slice_reader tests/test_slice_reader.cpp)
+target_link_libraries(test_slice_reader PRIVATE audio_codecs_slice)
+add_test(NAME SliceReaderTest COMMAND test_slice_reader)
 
 
 
