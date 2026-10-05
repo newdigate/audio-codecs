@@ -159,12 +159,17 @@ void Requantizer::reorder_short_blocks(float* xr_576, const FrameHeader& header)
 
     float temp[576];
     std::memcpy(temp, xr_576, sizeof(temp));
+    std::memset(xr_576, 0, sizeof(temp));
 
     int src = 0;
-    for (int sb = 0; sb < 32; ++sb) {
+    for (int s = 0; s < 12; ++s) {
+        int width = sfb_table[s + 1] - sfb_table[s];
         for (int w = 0; w < 3; ++w) {
-            for (int k = 0; k < 6; ++k) {
-                int dst = sb * 18 + w * 6 + k;
+            for (int k = 0; k < width; ++k) {
+                int freq = sfb_table[s] + k;
+                int sb = freq / 6;
+                int subband_k = freq % 6;
+                int dst = sb * 18 + w * 6 + subband_k;
                 if (dst < 576 && src < 576) {
                     xr_576[dst] = temp[src++];
                 }

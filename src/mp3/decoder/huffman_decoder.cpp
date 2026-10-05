@@ -161,6 +161,11 @@ bool HuffmanDecoder::decode_granule(core::BitReader& reader,
         if (!decode_pair(reader, book0, is_out_576[l], is_out_576[l + 1])) {
             break;
         }
+        if (reader.get_position_bits() > end_pos) {
+            is_out_576[l] = 0;
+            is_out_576[l + 1] = 0;
+            break;
+        }
         l += 2;
     }
 
@@ -170,6 +175,11 @@ bool HuffmanDecoder::decode_granule(core::BitReader& reader,
         if (!decode_pair(reader, book1, is_out_576[l], is_out_576[l + 1])) {
             break;
         }
+        if (reader.get_position_bits() > end_pos) {
+            is_out_576[l] = 0;
+            is_out_576[l + 1] = 0;
+            break;
+        }
         l += 2;
     }
 
@@ -177,6 +187,11 @@ bool HuffmanDecoder::decode_granule(core::BitReader& reader,
     const HuffmanCodebook& book2 = HUFFMAN_CODEBOOKS[gi.table_select[2]];
     while (l < big_values_limit && reader.get_position_bits() < end_pos) {
         if (!decode_pair(reader, book2, is_out_576[l], is_out_576[l + 1])) {
+            break;
+        }
+        if (reader.get_position_bits() > end_pos) {
+            is_out_576[l] = 0;
+            is_out_576[l + 1] = 0;
             break;
         }
         l += 2;
@@ -190,13 +205,18 @@ bool HuffmanDecoder::decode_granule(core::BitReader& reader,
                          is_out_576[l + 2], is_out_576[l + 3])) {
             break;
         }
+        if (reader.get_position_bits() > end_pos) {
+            is_out_576[l] = 0;
+            is_out_576[l + 1] = 0;
+            is_out_576[l + 2] = 0;
+            is_out_576[l + 3] = 0;
+            break;
+        }
         l += 4;
     }
 
-    // Skip any stuffing / unread bits in part3
-    if (reader.get_position_bits() < end_pos) {
-        reader.set_position_bits(end_pos);
-    }
+    // Set position to exact end_pos
+    reader.set_position_bits(end_pos);
 
     return true;
 }

@@ -170,6 +170,8 @@ int Mp3Decoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
 
             if (header.version == MpegVersion::Mpeg1) {
                 gi.preflag = (side_reader.read_bits(1) != 0);
+            } else {
+                gi.preflag = false;
             }
             gi.scalefac_scale = (side_reader.read_bits(1) != 0);
             gi.count1table_select = (side_reader.read_bits(1) != 0);
@@ -206,6 +208,8 @@ int Mp3Decoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
     for (int gr = 0; gr < header.ngr; ++gr) {
         for (int ch = 0; ch < header.channels; ++ch) {
             GranuleChannelInfo& gi = side.gr[gr][ch];
+            size_t gr_start_pos = main_reader.get_position_bits();
+            size_t gr_end_pos = gr_start_pos + gi.part2_3_length;
             size_t part2_bits_read = 0;
 
             // A. Scalefactors
@@ -214,6 +218,9 @@ int Mp3Decoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
             // B. Huffman Decoding
             size_t part3_bits = (gi.part2_3_length > part2_bits_read) ? (gi.part2_3_length - part2_bits_read) : 0;
             HuffmanDecoder::decode_granule(main_reader, gi, header, impl_->is[ch], part3_bits);
+
+            // Always enforce exact granule end boundary
+            main_reader.set_position_bits(gr_end_pos);
 
             // C. Requantization
             Requantizer::requantize_granule(impl_->is[ch], impl_->sf[ch], gi, header, impl_->xr[ch]);
