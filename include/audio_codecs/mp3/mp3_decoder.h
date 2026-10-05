@@ -16,6 +16,10 @@ public:
     int decode_frame(const uint8_t* in_data, size_t in_bytes, 
                      float* out_pcm, size_t max_out_samples) override;
 
+    // Saturated 16-bit integer decoder [-32768, 32767] (prevents wrap-around clipping)
+    int decode_frame_i16(const uint8_t* in_data, size_t in_bytes, 
+                         int16_t* out_pcm, size_t max_out_samples);
+
     // Helper: inspect last parsed frame header info
     bool get_frame_info(uint32_t& sample_rate, uint8_t& channels, uint32_t& bitrate_kbps) const;
     size_t get_last_frame_bytes() const;

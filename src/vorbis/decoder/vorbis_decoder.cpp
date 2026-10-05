@@ -311,4 +311,21 @@ int VorbisDecoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
     }
 }
 
+int VorbisDecoder::decode_frame_i16(const uint8_t* in_data, size_t in_bytes, 
+                                    int16_t* out_pcm, size_t max_out_samples) {
+    if (!out_pcm || max_out_samples == 0) return 0;
+    float temp_pcm[8192];
+    int samples = decode_frame(in_data, in_bytes, temp_pcm, 8192);
+    if (samples <= 0) return samples;
+
+    size_t count = std::min<size_t>(samples, max_out_samples);
+    for (size_t i = 0; i < count; ++i) {
+        float s = temp_pcm[i];
+        if (s > 1.0f) s = 1.0f;
+        else if (s < -1.0f) s = -1.0f;
+        out_pcm[i] = static_cast<int16_t>(s >= 0.0f ? (s * 32767.0f + 0.5f) : (s * 32768.0f - 0.5f));
+    }
+    return static_cast<int>(count);
+}
+
 } // namespace audio_codecs::vorbis

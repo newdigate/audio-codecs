@@ -6,7 +6,7 @@
 
 namespace audio_codecs::flac {
 
-template <size_t MaxChannels = 2, size_t MaxBlockSize = 4096>
+template <size_t MaxChannels = 2, size_t MaxBlockSize = 8192>
 class FlacDecoderBase : public AudioDecoder {
 public:
     FlacDecoderBase();
@@ -41,7 +41,7 @@ private:
     Impl* impl_{nullptr};
 };
 
-using FlacDecoder = FlacDecoderBase<2, 4096>;
+using FlacDecoder = FlacDecoderBase<2, 8192>;
 
 } // namespace audio_codecs::flac
 

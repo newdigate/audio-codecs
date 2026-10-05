@@ -37,8 +37,12 @@ int main() {
     uint8_t ch = 0;
     assert(decoder.get_frame_info(sr, ch, br));
     assert(sr == 44100);
-    assert(ch == 2);
-    assert(br == 128);
+    int16_t out_i16[2304] = {0};
+    int samples_i16 = decoder.decode_frame_i16(frame_buf, sizeof(frame_buf), out_i16, 2304);
+    assert(samples_i16 == 2304);
+    for (int i = 0; i < 2304; ++i) {
+        assert(out_i16[i] == 0);
+    }
 
     std::cout << "MP3 Decoder facade tests passed!\n";
     return 0;

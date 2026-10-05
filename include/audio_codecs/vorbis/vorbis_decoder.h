@@ -19,6 +19,8 @@ public:
     // Returns total interleaved PCM samples written to out_pcm, or negative on error
     int decode_frame(const uint8_t* in_data, size_t in_bytes, 
                      float* out_pcm, size_t max_out_samples) override;
+    int decode_frame_i16(const uint8_t* in_data, size_t in_bytes, 
+                         int16_t* out_pcm, size_t max_out_samples);
 
     // Process a single Vorbis header packet (0x01 ID, 0x03 Comment, 0x05 Setup)
     bool parse_header_packet(const uint8_t* in_packet, size_t in_bytes);
