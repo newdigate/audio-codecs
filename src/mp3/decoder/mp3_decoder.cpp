@@ -158,6 +158,12 @@ int Mp3Decoder::decode_frame(const uint8_t* in_data, size_t in_bytes,
                 for (int window = 0; window < 3; ++window) {
                     gi.subblock_gain[window] = static_cast<uint8_t>(side_reader.read_bits(3));
                 }
+                if (gi.block_type == 2 && !gi.mixed_block_flag) {
+                    gi.region0_count = 8;
+                } else {
+                    gi.region0_count = 7;
+                }
+                gi.region1_count = 36;
             } else {
                 gi.block_type = 0;
                 gi.mixed_block_flag = false;

@@ -136,9 +136,10 @@ bool HuffmanDecoder::decode_granule(core::BitReader& reader,
 
     const uint16_t* sfb_table = get_scalefac_band_table_long(header.sample_rate);
 
-    if (gi.window_switching_flag && (gi.block_type == 2)) {
-        // Short blocks: 3 windows
-        region0_limit = 36; // scalefactor band 3 (3 * 12 = 36)
+    if (gi.window_switching_flag) {
+        // When window switching is active (short, mixed, start, or stop blocks),
+        // ISO 11172-3 Section 2.4.3.4 defines region 0 up to sfb 8 (36 lines) and region 1 up to 576.
+        region0_limit = 36;
         region1_limit = 576;
     } else {
         // Long blocks

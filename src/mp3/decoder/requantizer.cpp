@@ -93,6 +93,7 @@ void Requantizer::requantize_granule(const int16_t* is,
     if (gi.window_switching_flag && (gi.block_type == 2)) {
         // Short blocks
         const uint16_t* sfb_table = get_scalefac_band_table_short(header.sample_rate);
+        int num_bands = (header.sample_rate == 8000) ? 12 : 13;
         
         float subblock_scales[3];
         for (int w = 0; w < 3; ++w) {
@@ -100,7 +101,7 @@ void Requantizer::requantize_granule(const int16_t* is,
         }
 
         int line = 0;
-        for (int s = 0; s < 12; ++s) {
+        for (int s = 0; s < num_bands; ++s) {
             int width = sfb_table[s + 1] - sfb_table[s];
             for (int w = 0; w < 3; ++w) {
                 float sf_factor = std::pow(2.0f, -sf_mult * static_cast<float>(sf.s[s][w]));
@@ -156,13 +157,14 @@ void Requantizer::requantize_granule(const int16_t* is,
 void Requantizer::reorder_short_blocks(float* xr_576, const FrameHeader& header) {
     if (!xr_576) return;
     const uint16_t* sfb_table = get_scalefac_band_table_short(header.sample_rate);
+    int num_bands = (header.sample_rate == 8000) ? 12 : 13;
 
     float temp[576];
     std::memcpy(temp, xr_576, sizeof(temp));
     std::memset(xr_576, 0, sizeof(temp));
 
     int src = 0;
-    for (int s = 0; s < 12; ++s) {
+    for (int s = 0; s < num_bands; ++s) {
         int width = sfb_table[s + 1] - sfb_table[s];
         for (int w = 0; w < 3; ++w) {
             for (int k = 0; k < width; ++k) {
